@@ -1,0 +1,15 @@
+
+[.text-center]
+*SKILLS*
+
+[cols="20%,80%",frame=none,grid=none,.text-center]
+!====
+! Backend ! Python, Flask, Golang, NodeJS
+! Frontend ! JavaScript / TypeScript, ReactJS, Svelte, htmx, TailwindCSS
+! Database (BDD) ! MySQL, MongoDB, Elasticsearch, RabbitMQ
+! Infrastructure / Cloud ! Docker, Batch
+! Artificial Intelligence ! Google Vertex, OpenAI, Mistral AI
+! Tools ! Git, Jest, Cypress
+! Languages ! French(Native), English(fluent), Malagasy(fluent)
+!====
+

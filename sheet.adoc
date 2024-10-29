@@ -1,0 +1,79 @@
+= Character Sheet: Character Name
+Author: Your Name
+:revdate: Date
+:toc: left
+:sectnums:
+:numbered:
+:icons: font
+
+== Character Overview
+
+*Character Name*: Name +
+*Class & Level*: Class Level +
+*Background*: Background +
+*Player Name*: Your Name +
+*Race*: Race +
+*Alignment*: Alignment +
+*Experience Points*: XP +
+
+== Abilities
+
+[cols="6*^", options="header"]
+|===
+|Strength |Dexterity |Constitution|Intelligence |Wisdom |Charisma
+
+|STR |DEX |CON|INT |WIS |CHA
+|===
+
+== Skills
+
+* Acrobatics (Dex) [ ]
+* Animal Handling (Wis) [ ]
+* Arcana (Int) [ ]
+* Athletics (Str) [ ]
+* Deception (Cha) [ ]
+* History (Int) [ ]
+* Insight (Wis) [ ]
+* Intimidation (Cha) [ ]
+* Investigation (Int) [ ]
+* Medicine (Wis) [ ]
+* Nature (Int) [ ]
+* Perception (Wis) [ ]
+* Performance (Cha) [ ]
+* Persuasion (Cha) [ ]
+* Religion (Int) [ ]
+* Sleight of Hand (Dex) [ ]
+* Stealth (Dex) [ ]
+* Survival (Wis) [ ]
+
+== Equipment
+
+*Weapons*:
+- Weapon Name: Details
+
+*Armor*:
+- Armor Type: Details
+
+*Other Equipment*:
+- Item: Details
+
+== Features and Traits
+
+* Feature/Trait Name: Description
+
+== Biography
+
+Character's Backstory: Insert backstory here
+
+== Additional Notes
+
+* Any additional notes, allies, enemies, pets, etc.
+
+== Appendix
+
+[appendix]
+=== Spell List
+
+*Level 0 (Cantrips)*:
+- Cantrip Name: Description
+

@@ -1,0 +1,17 @@
+
+[.text-center]
+*FULLSTACK DEVELOPER* 
+
+[.text-center]
+Rakotoasimbola Fana
+
+include::./contact.adoc[]
+
+
+[.text-center,font-size="50rem"]
+*ABOUT ME*
+
+[.text-center]
+I began my journey in computer science at a young age, crafting small games with Game Maker and RPG Maker. Now boasting over 5 years of experience, I excel in JavaScript, Golang, and Python across both front-end and back-end development domains. My adaptability to various technologies allows me to meet client needs and requirements effectively. Presently, I am on the lookout for a role in Research & Development that encapsulates both front-end and back-end facets.
+
+---

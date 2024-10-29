@@ -1,0 +1,45 @@
+[.text-center]
+*EXPERIENCES*
+
+
+
+[cols="80%,20%",grid=rows,frame=none]
+|===
+a|
+*SFR, Fullstack Developer*
+
+* Mission: Developed an API and to use multiple llm services.
+* Technologies Used: React, Golang, NodeJS, Google Vertex, OpenAI.
+* Objective: Created an API for agents to query assistance in natural language, enabling rapid response to user requests.
+
+|(2023-today)
+
+a|*XXII CORE, Fullstack Developer*
+
+* Mission: Involved in the maintenance and development of a video analysis platform.
+* Technologies Used: ReactJS, NodeJS, MongoDB.
+* Objective: Enhanced the platform's real-time analysis capability for detecting objects or people in motion.
+
+| (2022, 4 months)
+
+a| *Cliris / Dasia, Fullstack Developer*
+
+* Mission: Focused on software and web development.
+* Technologies Used: ReactJS, NodeJS, Golang, MySQL, MongoDB.
+* Objective: Developed a software platform for real-time video stream analysis and various tools, including :
+** labelling tool for computer vision model training.
+** API for User management
+
+|(2019-2022, 3 years)
+
+a| *Aurera, Software Developer*
+
+* Mission: Developed a chatbot for the company's website.
+* Technologies Used: NodeJS, Microsoft Azure.
+* Objective: Engaged visitors through conversational AI, trained using Microsoft Azure's NLP services, as part of a digital transformation initiative.
+
+| (2019, 4 months)
+
+|===
+
+---

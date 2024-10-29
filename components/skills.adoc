@@ -1,0 +1,35 @@
+
+[.text-center]
+*SKILLS*
+
+[cols="20%,80%",frame=none,grid=rows]
+|====
+| Backend a| 
+
+[.text-center]
+Python, Flask, Golang, NodeJS
+| Frontend a| 
+[.text-center]
+JavaScript / TypeScript, ReactJS, Svelte, htmx, TailwindCSS
+| Database (BDD) a| 
+[.text-center]
+MySQL, MongoDB, Elasticsearch, RabbitMQ
+| Infrastructure / Cloud a| 
+[.text-center]
+Docker, Batch
+| Artificial Intelligence a| 
+[.text-center]
+Google Vertex, OpenAI, Mistral AI
+| Tools a| 
+[.text-center]
+Git, Jest, Cypress
+|
+Languages a|
+
+[.text-center]
+French (Native) +
+English (fluent) +
+Malagasy (fluent) +
+|====
+
+---

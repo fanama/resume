@@ -1,0 +1,10 @@
+:doctype: article
+:pdf-page-size: [12in, 24in]
+:toc-title:
+:font: 0.8
+:icons: font
+
+include::./components/about.adoc[]
+include::./components/work.adoc[]
+include::./components/activity.adoc[]
+include::./components/skills.adoc[]
