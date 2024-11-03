@@ -1,21 +1,20 @@
+---
+
 
 [.text-center]
 *EDUCATION*
 
-[cols="80%,20%",grid=rows,frame=none]
-|===
-| SUPINFO, Master 2: Expert in Computer Science, Specialization: Web Development | Supinfo Paris (2017-2020)
-| Classe Préparatoire aux Grandes Ecoles, TSI Maths sup/spé | Lycée Raspail Paris (2015-2017)
-|===
----
-
-[.text-center]
-*PERSONAL PROJECTS*
-
 [cols="80%,20%",grid=none,frame=none]
 |===
-| E-anatra : A project aimed at improving education in Madagascar. Utilized Trello, Google Suite, Asana Clip Studio, and Photoshop JS | (Since Oct 2022)
-| Lamako : Worked as a web designer and developer for a startup promoting Malagasy culture through a board game. Used Photoshop and Clip Studio Paint | (2017-2019, 2 years)
+||
+a| *SUPINFO, Master 2: Expert in Computer Science* 
+
+| Supinfo Paris (2017-2020)
+||
+a| *Classe Préparatoire aux Grandes Ecoles: TSI Maths sup/spé*
+
+| Lycée Raspail Paris (2015-2017)
+
 |===
 
 ---

@@ -1,4 +1,14 @@
+---
+[cols="10%,10%,20%",frame=none,grid=none]
+|===
+a| 
 [.text-center]
-Paris | f.rakotoasimbola@gmail.com | https://www.linkedin.com/in/fanamperantsoa-rakotoasimbola-36588915b/ | https://github.com/fanama
-
+*ville* : Paris  
+a| 
+[.text-center]
+*mail* : f.rakotoasimbola@gmail.com
+a| 
+[.text-center]
+*github* : https://github.com/fanama[github.com/fanama]
+|===
 ---

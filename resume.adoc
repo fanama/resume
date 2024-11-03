@@ -6,5 +6,5 @@
 
 include::./components/about.adoc[]
 include::./components/work.adoc[]
-include::./components/activity.adoc[]
+include::./components/Activity.adoc[]
 include::./components/skills.adoc[]

@@ -1,45 +1,60 @@
+
 [.text-center]
-*EXPERIENCES*
+*EXPÉRIENCES*
 
-
-
-[cols="80%,20%",grid=rows,frame=none]
+[cols="80%,20%",grid=none,frame=none]
 |===
 a|
-*SFR, Fullstack Developer*
+*SFR, Fullstack Developer LLM*
 
-* Mission: Developed an API and to use multiple llm services.
-* Technologies Used: React, Golang, NodeJS, Google Vertex, OpenAI.
-* Objective: Created an API for agents to query assistance in natural language, enabling rapid response to user requests.
+* *Description* : Entreprise de télécommunications
+* *Missions* :
+  ** Rédaction du document Crédit Impôt Recherche, permettant à l'entreprise de valoriser les projets innovants en IA.
+  ** Développement d'une API "LLM as a Service" intégrant des services d'IA, facilitant l'automatisation des tâches pour l'équipe et réduisant la charge de travail.
+  ** Création d'un outil de désambiguïsation conversationnelle, améliorant la précision de la compréhension des besoins utilisateurs.
+  ** Mise en place d'un résumeur de conversation, économisant du temps pour les conseillers en réduisant le temps de relecture.
+  ** Automatisation de la creation de benchmark pour la collecte et synthèse des données, réduisant le temps de recherche d'informations.
+  ** Implémentation d'un chatbot RAG, offrant un accès facilité et rapide aux informations internes pour les équipes.
+* *Technologies* : React, Svelte, Golang, NodeJS, Python, Google Vertex, GCP (Google Cloud Platform), OpenAI,ElasticSearch.
 
-|(2023-today)
+| (2023 - aujourd'hui)
 
-a|*XXII CORE, Fullstack Developer*
+||
 
-* Mission: Involved in the maintenance and development of a video analysis platform.
-* Technologies Used: ReactJS, NodeJS, MongoDB.
-* Objective: Enhanced the platform's real-time analysis capability for detecting objects or people in motion.
+a| *XXII CORE, Fullstack Developer*
 
-| (2022, 4 months)
+* *Description* : Entreprise de data visualisation
+* *Missions* :
+  ** Maintenance et optimisation de l'interface d'analyse vidéo, réduisant les temps de chargement.
+  ** Mise en place de tests E2E et unitaires, augmentant la couverture de tests de 70 %.
+  ** Amélioration de l'interface utilisateur, augmentant la satisfaction des utilisateurs.
+* *Technologies* : ReactJS, NodeJS, MongoDB.
+
+| (2022, 4 mois)
+
+||
 
 a| *Cliris / Dasia, Fullstack Developer*
 
-* Mission: Focused on software and web development.
-* Technologies Used: ReactJS, NodeJS, Golang, MySQL, MongoDB.
-* Objective: Developed a software platform for real-time video stream analysis and various tools, including :
-** labelling tool for computer vision model training.
-** API for User management
+* *Description* : Entreprise de data visualisation
+* *Missions* :
+  ** Mise en place d'un outil de paramétrage de caméra en ligne, optimisant l'installation des caméras par les conseillers.
+  ** Refonte d'une interface de labellisation vidéo et mise en ligne de l'application, permettant de labeliser les objets à distance.
+  ** Mise en place d'une API d'authentification, renforçant la sécurité et l'accessibilité de la plateforme et des outils de l'entreprise.
+* *Technologies* : ReactJS, NodeJS, Golang, MySQL, MongoDB,RabbitMQ.
 
-|(2019-2022, 3 years)
+| (2019 - 2022, 3 ans)
+
+||
 
 a| *Aurera, Software Developer*
 
-* Mission: Developed a chatbot for the company's website.
-* Technologies Used: NodeJS, Microsoft Azure.
-* Objective: Engaged visitors through conversational AI, trained using Microsoft Azure's NLP services, as part of a digital transformation initiative.
+* *Description* : Entreprise de services numériques
+* *Missions* :
+  ** Création et formation d'un chatbot en collaboration avec les services NLP de Microsoft Azure, dans le cadre de la transformation numérique de l'entreprise, améliorant la satisfaction client.
+* *Technologies* : NodeJS, Microsoft Azure.
 
-| (2019, 4 months)
+| (2019, 4 mois)
 
 |===
 
----

@@ -1,17 +1,19 @@
 
-[.text-center]
-*FULLSTACK DEVELOPER* 
+[.text-center,font-size="50rem"]
+*Développeur Fullstack spécialisé dans les LLM*
 
 [.text-center]
-Rakotoasimbola Fana
+Rakotoasimbola Fananamperantsoa
 
 include::./contact.adoc[]
 
 
 [.text-center,font-size="50rem"]
-*ABOUT ME*
+*A PROPOS*
 
 [.text-center]
-I began my journey in computer science at a young age, crafting small games with Game Maker and RPG Maker. Now boasting over 5 years of experience, I excel in JavaScript, Golang, and Python across both front-end and back-end development domains. My adaptability to various technologies allows me to meet client needs and requirements effectively. Presently, I am on the lookout for a role in Research & Development that encapsulates both front-end and back-end facets.
+Développeur fullstack passionné, avec plus de 5 ans d'expérience en développement front-end et back-end.
+Adaptable aux technologies variées, actuellement focalisé sur la recherche et le développement en IA générative. 
+À la recherche d’un poste en R&D pour mettre à profit mon expertise en fullstack et dans les projets pilotés par l’IA.
 
 ---

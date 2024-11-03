@@ -1,15 +1,25 @@
 
+
 [.text-center]
-*SKILLS*
+*COMPÉTENCES*
 
-[cols="20%,80%",frame=none,grid=none,.text-center]
-!====
-! Backend ! Python, Flask, Golang, NodeJS
-! Frontend ! JavaScript / TypeScript, ReactJS, Svelte, htmx, TailwindCSS
-! Database (BDD) ! MySQL, MongoDB, Elasticsearch, RabbitMQ
-! Infrastructure / Cloud ! Docker, Batch
-! Artificial Intelligence ! Google Vertex, OpenAI, Mistral AI
-! Tools ! Git, Jest, Cypress
-! Languages ! French(Native), English(fluent), Malagasy(fluent)
-!====
+[cols="6*",rows="6*",frame=none,grid=rows,header=none]
+|====
+a|  | |  | | |
+a| *Backend* | Python| Flask| Golang| NodeJS |
 
+a| *Frontend* | JavaScript / TypeScript| ReactJS| Svelte| htmx| TailwindCSS
+
+a| *Base de données* | MySQL| MongoDB| Elasticsearch| RabbitMQ |
+
+a| *Infrastructure / Cloud* | Google Cloud plateforme | Microsoft Azure | Batch |Docker|
+
+a| *Artificial* Intelligence | Google Vertex| OpenAI| Mistral AI||
+
+a| *Tools* | Git| Jest| Cypress ||
+
+a| *Langues* | Français (Natif) | Anglais (courant) | Malgache (courant) ||
+
+|====
+
+---
