@@ -5,9 +5,9 @@
 [cols="80%,20%",grid=none,frame=none]
 |===
 a|
-*SFR, Fullstack Developer LLM*
+*SFR,  Developer Fullstack LLM*
 
-* *Description* : Entreprise de télécommunications
+* *Description* : Entreprise Leader de télécommunication
 * *Missions* :
   ** Rédaction du document Crédit Impôt Recherche, permettant à l'entreprise de valoriser les projets innovants en IA.
   ** Développement d'une API "LLM as a Service" intégrant des services d'IA, facilitant l'automatisation des tâches pour l'équipe et réduisant la charge de travail.
@@ -21,9 +21,9 @@ a|
 
 ||
 
-a| *XXII CORE, Fullstack Developer*
+a| *XXII CORE, Developer Fullstack*
 
-* *Description* : Entreprise de data visualisation
+* *Description* :  Plateforme logicielle permettant d’analyser en temps réel les flux vidéos des caméras déjà installées dans les villes et les sites privés.
 * *Missions* :
   ** Maintenance et optimisation de l'interface d'analyse vidéo, réduisant les temps de chargement.
   ** Mise en place de tests E2E et unitaires, augmentant la couverture de tests de 70 %.
@@ -34,9 +34,9 @@ a| *XXII CORE, Fullstack Developer*
 
 ||
 
-a| *Cliris / Dasia, Fullstack Developer*
+a| *Cliris / Dasia, Developer Fullstack*
 
-* *Description* : Entreprise de data visualisation
+* *Description* : Pionnier de l'analyse des flux vidéo du trafic client et citoyen en intérieur et en extérieur.
 * *Missions* :
   ** Mise en place d'un outil de paramétrage de caméra en ligne, optimisant l'installation des caméras par les conseillers.
   ** Refonte d'une interface de labellisation vidéo et mise en ligne de l'application, permettant de labeliser les objets à distance.
@@ -47,7 +47,7 @@ a| *Cliris / Dasia, Fullstack Developer*
 
 ||
 
-a| *Aurera, Software Developer*
+a| *Aurera,  Developer Logiciel*
 
 * *Description* : Entreprise de services numériques
 * *Missions* :

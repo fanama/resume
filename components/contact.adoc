@@ -1,14 +1,18 @@
 ---
-[cols="10%,10%,20%",frame=none,grid=none]
+[cols="4*",frame=none,grid=none]
 |===
 a| 
 [.text-center]
-*ville* : Paris  
+*Ville* : Paris  
 a| 
 [.text-center]
-*mail* : f.rakotoasimbola@gmail.com
+*Mail* : f.rakotoasimbola@gmail.com
 a| 
 [.text-center]
-*github* : https://github.com/fanama[github.com/fanama]
+*Github* : https://github.com/fanama[github.com/fanama]
+a| 
+[.text-center]
+*Linkedin* : https://www.linkedin.com/in/fanamperantsoa-rakotoasimbola-36588915b/[Fana Rakotoasimbola]
+
 |===
 ---

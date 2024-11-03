@@ -19,14 +19,14 @@
 | | | | | | | 
 | *Backend* | *Frontend* | *Base de données*  | *Infrastructure / Cloud* | *Intelligence Artificielle* | *Tools*    | *Langues*
 
-| Python| JavaScript / TypeScript| MySQL| Google Cloud Platform  | Google Vertex             | Git      | Français (Natif)
+| Python    | JavaScript / TypeScript| MySQL  | Google Cloud Platform    | Google Vertex               | Git        | Français (Natif)
 
-| Flask | ReactJS | MongoDB             | Microsoft Azure        | OpenAI                    | Jest     | Anglais(courant)
+| Flask     | ReactJS | MongoDB               | Microsoft Azure          | OpenAI                      | Jest       | Anglais(courant)
 
-| Golang| Svelte  | Elasticsearch       | Batch                  | Mistral AI                | Cypress  | Malgache(courant)
+| Golang    | Svelte  | Elasticsearch         | Batch                    | Mistral AI                  | Cypress    | Malgache(courant)
 
-| NodeJS| tailwind| RabbitMQ            | Docker                 |                           |          |
-|       | htmx    |                     |                        |                           |          |
+| NodeJS    | tailwind| RabbitMQ              | Docker                   | Ollama                      |            |
+|           | htmx    |                       |                          | HuggingFace                 |            |
 |====
 
 
