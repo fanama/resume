@@ -2,6 +2,23 @@
 
 
 [.text-center]
+*EXPÉRIENCE SUPPLÉMENTAIRE*
+
+*Enseignant de cours particuliers de mathématiques*
+
+- Compétences développées : Pédagogie, communication et vulgarisation. Capacité à expliquer des concepts complexes de manière accessible et à adapter mon approche en fonction des besoins de chaque élève.
+
+- Impact : Renforcement de ma capacité à collaborer et à expliquer des notions techniques, utile dans la transmission de savoirs en environnement professionnel.
+
+*Etude de de l'Alto et du solfège au Conservatoire de Malakoff*
+
+- Compétences développées : Discipline, créativité, rigueur, écoute et persévérance, qualités essentielles en développement de solutions innovantes.
+
+- Impact : Développement de l’attention aux détails et de la créativité, que je transpose dans la résolution de problèmes complexes en IA et développement logiciel.
+
+---
+
+[.text-center]
 *EDUCATION*
 
 [cols="80%,20%",grid=none,frame=none]

@@ -1,32 +1,9 @@
 
 [.text-center]
-*COMPÉTENCES*
+*COMPÉTENCES TRANSVERSALES*
 
-*Compétences relationnelles*
+*Esprit d’Analyse et Résolution de Problèmes* : Identification et résolution des problèmes techniques complexes avec une approche rigoureuse, notamment dans les projets innovants liés à l'IA.
 
-[cols="1*",frame=none,grid=cols]
-|====
-|
-|*Esprit d’Analyse et Résolution de Problèmes* : Identification et résolution des problèmes techniques complexes avec une approche rigoureuse, notamment dans les projets inovants liés à l'IA.
-|*Adaptabilité et Apprentissage Continu* : Capacité à maîtriser rapidement de nouvelles technologies et méthodologies en IA, indispensable pour évoluer dans un domaine en constante innovation.
-|
-|====
+*Adaptabilité et Apprentissage Continu* : Capacité à maîtriser rapidement de nouvelles technologies et méthodologies en IA, indispensable pour évoluer dans un domaine en constante innovation.
 
-*Compétences Techniques*
-
-[cols="7*",frame=none,grid=cols]
-|====
-| | | | | | | 
-| *Backend* | *Frontend* | *Base de données*  | *Infrastructure / Cloud* | *Intelligence Artificielle* | *Tools*    | *Langues*
-
-| Python    | JavaScript / TypeScript| MySQL  | Google Cloud Platform    | Google Vertex               | Git        | Français (Natif)
-
-| Flask     | ReactJS | MongoDB               | Microsoft Azure          | OpenAI                      | Jest       | Anglais(courant)
-
-| Golang    | Svelte  | Elasticsearch         | Batch                    | Mistral AI                  | Cypress    | Malgache(courant)
-
-| NodeJS    | tailwind| RabbitMQ              | Docker                   | Ollama                      |            |
-|           | htmx    |                       |                          | HuggingFace                 |            |
-|====
-
-
+*Langues* : Français (Natif), Anglais(courant), Malgache(courant)

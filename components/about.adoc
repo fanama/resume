@@ -1,9 +1,9 @@
 
+= *Rakotoasimbola Fananamperantsoa*
+
 [.text-center,font-size="50rem"]
 *DÉVELOPPEUR FULLSTACK : Spécialisé dans les LLM*
 
-[.text-center]
-*Rakotoasimbola Fananamperantsoa*
 
 include::./contact.adoc[]
 
@@ -12,8 +12,9 @@ include::./contact.adoc[]
 *A PROPOS*
 
 [.text-center]
-Développeur fullstack passionné, avec plus de 5 ans d'expérience en développement front-end et back-end.
-Adaptable aux technologies variées, actuellement focalisé sur la recherche et le développement en IA générative. 
-Je suis à la recherche d’un poste en R&D pour mettre à profit mon expertise Fullstack et dans les projets pilotés par l’IA.
+Développeur fullstack passionné et créatif, fort de plus de 5 ans d'expérience en développement front-end et back-end, 
+je suis toujours à la recherche de nouvelles façons d'innover et de repousser les limites technologiques. 
+Curieux et adaptable, j’ai su naviguer avec aisance entre des technologies variées, en me spécialisant aujourd'hui 
+dans la recherche et le développement en intelligence artificielle générative. 
 
 ---
