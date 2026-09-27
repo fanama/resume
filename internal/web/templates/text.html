@@ -1,0 +1,6 @@
+{{/*
+  The text view is what a parser extracts, escaped and shown as-is. It goes
+  through html/template rather than being injected as raw text: the content comes
+  from the browser and would otherwise be live HTML.
+*/}}
+<pre class="plaintext">{{.Text}}</pre>

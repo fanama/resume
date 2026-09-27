@@ -1,9 +1,0 @@
-
-[.text-center]
-*COMPÉTENCES TRANSVERSALES*
-
-*Esprit d’Analyse et Résolution de Problèmes* : Identification et résolution des problèmes techniques complexes avec une approche rigoureuse, notamment dans les projets innovants liés à l'IA.
-
-*Adaptabilité et Apprentissage Continu* : Capacité à maîtriser rapidement de nouvelles technologies et méthodologies en IA, indispensable pour évoluer dans un domaine en constante innovation.
-
-*Langues* : Français (Natif), Anglais(courant), Malgache(courant)

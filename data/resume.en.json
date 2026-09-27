@@ -1,0 +1,149 @@
+{
+  "lang": "en",
+  "name": "Rakotoasimbola Fananamperantsoa",
+  "headline": "Fullstack Developer, generative AI (LLM)",
+  "contact": {
+    "city": "Paris",
+    "country": "France",
+    "email": "f.rakotoasimbola@gmail.com",
+    "phone": "",
+    "links": [
+      { "label": "GitHub", "url": "https://github.com/fanama" },
+      { "label": "LinkedIn", "url": "https://www.linkedin.com/in/fanamperantsoa-rakotoasimbola-36588915b/" }
+    ]
+  },
+  "summary": "Fullstack developer with 5 years of experience, from Go and Python backends to React interfaces, specialised in generative artificial intelligence: production web platforms, video stream analytics and LLM applications deployed on GCP.",
+  "experience": [
+    {
+      "title": "Fullstack Developer, LLM",
+      "company": "SFR",
+      "location": "Paris",
+      "start": "2023",
+      "end": "present",
+      "summary": "Telecommunications operator, R&D team applying generative AI to the internal functions of the group.",
+      "highlights": [
+        "Authored the research tax credit (CIR) file presenting the company AI projects to the tax authority.",
+        "Built the LLM as a Service platform to automate internal tasks, reducing the workload of the teams.",
+        "Created a conversational disambiguation tool, improving the accuracy of customer need understanding for 1000 users per day.",
+        "Deployed a conversation summarizer that gives advisors back reading time on every customer file, for 1000 users per day.",
+        "Automated the generation of benchmarks for data collection and synthesis, cutting information research time.",
+        "Implemented a RAG chatbot giving the teams a fast and intuitive access to internal documentation."
+      ],
+      "team": "Project manager and two developers",
+      "stack": [
+        "Golang",
+        "Python",
+        "React",
+        "Svelte",
+        "NodeJS",
+        "Google Vertex AI",
+        "OpenAI",
+        "GCP",
+        "Elasticsearch"
+      ]
+    },
+    {
+      "title": "Fullstack Developer",
+      "company": "XXII CORE",
+      "location": "Paris",
+      "start": "2022",
+      "end": "",
+      "summary": "Vendor of a platform analysing in real time video streams captured by cameras in urban areas and on private sites, over a 4 month contract.",
+      "highlights": [
+        "Maintained and optimised the video analysis interface, cutting load times and improving responsiveness.",
+        "Set up the end-to-end and unit test strategy, raising test coverage to 70 %.",
+        "Improved the user interface, increasing end user satisfaction."
+      ],
+      "team": "Product manager, product owner and three developers",
+      "stack": ["React", "NodeJS", "MongoDB"]
+    },
+    {
+      "title": "Fullstack Developer",
+      "company": "Cliris / Dasia",
+      "location": "Paris",
+      "start": "2019",
+      "end": "2022",
+      "summary": "Specialist in indoor and outdoor video stream analytics for customer and citizen traffic monitoring, over 3 years.",
+      "highlights": [
+        "Built an online camera configuration tool, making installation and setup easier for the technical advisors.",
+        "Rebuilt the video labelling interface, enabling remote object labelling and a fast production release.",
+        "Developped an authentication API, strengthening the security of the internal tools and platforms."
+      ],
+      "team": "Project manager and two developers",
+      "stack": ["React", "NodeJS", "Golang", "MySQL", "MongoDB", "RabbitMQ"]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Master 2, Expert in Computer Science",
+      "school": "SUPINFO Paris",
+      "location": "Paris",
+      "start": "2017",
+      "end": "2020"
+    },
+    {
+      "degree": "Preparatory class for the grandes écoles, TSI Maths Sup and Spé",
+      "school": "Lycée Raspail",
+      "location": "Paris",
+      "start": "2015",
+      "end": "2017"
+    }
+  ],
+  "skills": [
+    {
+      "category": "Backend",
+      "items": ["Golang", "Python", "NodeJS", "Flask", "REST API"]
+    },
+    {
+      "category": "Frontend",
+      "items": ["JavaScript", "TypeScript", "React", "Svelte", "Tailwind", "HTMX"]
+    },
+    {
+      "category": "Databases",
+      "items": ["MySQL", "MongoDB", "Elasticsearch", "RabbitMQ"]
+    },
+    {
+      "category": "Infrastructure and cloud",
+      "items": ["Google Cloud Platform", "Microsoft Azure", "Batch", "Docker"]
+    },
+    {
+      "category": "Artificial intelligence",
+      "items": [
+        "LLM",
+        "Google Vertex AI",
+        "OpenAI",
+        "Mistral AI",
+        "Ollama",
+        "HuggingFace"
+      ]
+    },
+    {
+      "category": "Tools",
+      "items": ["Git", "Jest", "Cypress"]
+    }
+  ],
+  "languages": [
+    { "name": "French", "level": "Native" },
+    { "name": "English", "level": "Fluent" },
+    { "name": "Malagasy", "level": "Fluent" }
+  ],
+  "activities": [
+    {
+      "name": "Private mathematics tutor",
+      "organization": "Self-employed",
+      "summary": "Teaching, communication and popularisation: explaining complex concepts in an accessible way and adapting the approach to every student.",
+      "highlights": [
+        "Skills developed: teaching, communication and popularisation, in a setting where every student has a different level.",
+        "Impact: able to explain a technical topic, later reused to document company projects."
+      ]
+    },
+    {
+      "name": "Alto and music theory studies",
+      "organization": "Conservatoire de Malakoff",
+      "summary": "Discipline, creativity, rigour and perseverance in long term work on complex scores.",
+      "highlights": [
+        "Skills developed: attention to detail and creativity, later applied to solving complex problems."
+      ]
+    }
+  ]
+}

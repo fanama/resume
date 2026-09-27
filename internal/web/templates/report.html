@@ -1,0 +1,37 @@
+{{if .Error}}
+  <div class="finding finding-error">
+    <p class="finding-msg">{{.Error}}</p>
+    <p class="finding-hint">Corrige le JSON, puis l’aperçu repartira tout seul.</p>
+  </div>
+{{else}}
+  {{$r := .Report}}
+  <div class="score" data-score="{{$r.Score}}">
+    <div class="score-value">
+      <span class="score-num">{{$r.Score}}</span><span class="score-den">/100</span>
+    </div>
+    <ul class="stats">
+      <li><b>{{$r.Stats.Words}}</b> mots</li>
+      <li><b>{{$r.Stats.Entries}}</b> entrées</li>
+      <li><b>{{$r.Stats.Skills}}</b> compétences</li>
+      <li><b>{{$r.Stats.Metrics}}</b> résultats chiffrés</li>
+      <li><b>{{$r.Stats.Pages}}</b> page(s)</li>
+    </ul>
+  </div>
+  {{if not $r.Findings}}
+    <p class="finding finding-ok">Aucun problème détecté.</p>
+  {{else}}
+    <ul class="findings">
+      {{range $r.Findings}}
+        <li class="finding finding-{{.Severity}}">
+          <p class="finding-head">
+            <span class="sev">{{.Severity}}</span>
+            <span class="rule">{{.Rule}}</span>
+            <span class="where">{{.Where}}</span>
+          </p>
+          <p class="finding-msg">{{.Message}}</p>
+          {{if .Hint}}<p class="finding-hint">{{.Hint}}</p>{{end}}
+        </li>
+      {{end}}
+    </ul>
+  {{end}}
+{{end}}

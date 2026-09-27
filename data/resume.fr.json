@@ -1,0 +1,148 @@
+{
+  "lang": "fr",
+  "name": "Rakotoasimbola Fananamperantsoa",
+  "headline": "Développeur Fullstack spécialisé en IA générative (LLM)",
+  "contact": {
+    "city": "Paris",
+    "country": "France",
+    "email": "f.rakotoasimbola@gmail.com",
+    "phone": "",
+    "links": [
+      { "label": "GitHub", "url": "https://github.com/fanama" },
+      {
+        "label": "LinkedIn",
+        "url": "https://www.linkedin.com/in/fanamperantsoa-rakotoasimbola-36588915b/"
+      }
+    ]
+  },
+  "summary": "Développeur fullstack avec 5 ans d'expérience, du backend Go et Python à l'interface React, spécialisé en intelligence artificielle générative : plateformes web en production, analyse de flux vidéo et applications LLM déployées sur GCP.",
+  "experience": [
+    {
+      "title": "Développeur Fullstack LLM",
+      "company": "SFR",
+      "location": "Paris",
+      "start": "2023",
+      "end": "present",
+      "summary": "Opérateur de télécommunications, équipe R&D appliquée à l'IA générative pour les fonctions internes du groupe.",
+      "highlights": [
+        "Rédaction du document Crédit Impôt Recherche (CIR), valorisant les projets IA de l'entreprise auprès de l'administration fiscale.",
+        "Développement de la plateforme LLM as a Service pour automatiser des tâches internes, réduisant la charge de travail des équipes.",
+        "Création d'un outil de désambiguïsation conversationnelle, augmentant la précision de compréhension des besoins clients pour 1000 utilisateurs par jour.",
+        "Mise en place d'un résumeur de conversations, permettant aux conseillers de gagner du temps en réduisant le temps de relecture, pour 1000 utilisateurs par jour.",
+        "Automatisation de la création de benchmarks pour la collecte et la synthèse de données, réduisant le temps de recherche d'informations.",
+        "Implémentation d'un chatbot RAG, offrant un accès rapide et intuitif aux informations internes pour les équipes."
+      ],
+      "team": "Chef de projet et deux développeurs",
+      "stack": [
+        "Golang",
+        "Python",
+        "React",
+        "Svelte",
+        "NodeJS",
+        "Google Vertex AI",
+        "OpenAI",
+        "GCP",
+        "Elasticsearch"
+      ]
+    },
+    {
+      "title": "Développeur Fullstack",
+      "company": "XXII CORE",
+      "location": "Paris",
+      "start": "2022",
+      "end": "2022",
+      "summary": "Éditeur d'une plateforme d'analyse en temps réel de flux vidéo captés par des caméras en milieu urbain et sur sites privés, sur une durée de 4 mois.",
+      "highlights": [
+        "Maintenance et optimisation de l'interface d'analyse vidéo, réduisant les temps de chargement et améliorant la réactivité.",
+        "Mise en place de tests E2E et unitaires, portant la couverture de tests à 70 %.",
+        "Amélioration de l'interface utilisateur, augmentant la satisfaction des utilisateurs finaux."
+      ],
+      "team": "Product Manager, Product Owner et trois développeurs",
+      "stack": ["React", "NodeJS", "MongoDB"]
+    },
+    {
+      "title": "Développeur Fullstack",
+      "company": "Cliris / Dasia",
+      "location": "Paris",
+      "start": "2019",
+      "end": "2022",
+      "summary": "Spécialiste de l'analyse de flux vidéo en intérieur et en extérieur pour optimiser le suivi du trafic client et citoyen, sur 3 ans.",
+      "highlights": [
+        "Développement d'un outil de paramétrage de caméras en ligne, facilitant l'installation et la configuration par les conseillers techniques.",
+        "Refonte de l'interface de labellisation vidéo, permettant la labellisation des objets à distance et la mise en production rapide.",
+        "Développement d'une API d'authentification, renforçant la sécurité et l'accès sécurisé aux outils et plateformes de l'entreprise."
+      ],
+      "team": "Chef de projet et deux développeurs",
+      "stack": ["React", "NodeJS", "Golang", "MySQL", "MongoDB", "RabbitMQ"]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Master 2, Expert in Computer Science",
+      "school": "SUPINFO Paris",
+      "location": "Paris",
+      "start": "2017",
+      "end": "2020"
+    },
+    {
+      "degree": "Classe préparatoire aux grandes écoles, TSI Maths Sup et Spé",
+      "school": "Lycée Raspail",
+      "location": "Paris",
+      "start": "2015",
+      "end": "2017"
+    }
+  ],
+
+  "skills": [
+    {
+      "category": "Backend",
+      "items": ["Golang", "Python", "NodeJS", "Flask", "API REST"]
+    },
+    {
+      "category": "Frontend",
+      "items": ["JavaScript", "TypeScript", "React", "Svelte", "Tailwind", "HTMX"]
+    },
+    {
+      "category": "Base de données",
+      "items": ["MySQL", "MongoDB", "Elasticsearch", "RabbitMQ"]
+    },
+    {
+      "category": "Infrastructure et cloud",
+      "items": ["Google Cloud Platform", "Microsoft Azure", "Batch", "Docker"]
+    },
+    {
+      "category": "Intelligence artificielle",
+      "items": ["LLM", "Google Vertex AI", "OpenAI", "Mistral AI", "Ollama", "HuggingFace"]
+    },
+    {
+      "category": "Outils",
+      "items": ["Git", "Jest", "Cypress"]
+    }
+  ],
+
+  "languages": [
+    { "name": "Français", "level": "Langue maternelle" },
+    { "name": "Anglais", "level": "Courant" },
+    { "name": "Malgache", "level": "Courant" }
+  ],
+
+  "activities": [
+    {
+      "name": "Enseignant de cours particuliers de mathématiques",
+      "organization": "Indépendant",
+      "summary": "Pédagogie, communication et vulgarisation : capacité à expliquer des concepts complexes de manière accessible et à adapter son approche aux besoins de chaque élève.",
+      "highlights": [
+        "Compétences développées : pédagogie, communication et vulgarisation, dans un cadre où chaque élève a un niveau différent.",
+        "Impact : capacité à expliquer une notion technique, réutilisée ensuite pour documenter les projets en entreprise."
+      ]
+    },
+    {
+      "name": "Étude de l'alto et du solfège",
+      "organization": "Conservatoire de Malakoff",
+      "summary": "Discipline, créativité, rigueur et persévérance dans un travail de long terme sur des partitions complexes.",
+      "highlights": [
+        "Compétences développées : attention aux détails et créativité, transposées ensuite à la résolution de problèmes complexes."
+      ]
+    }
+  ]
+}

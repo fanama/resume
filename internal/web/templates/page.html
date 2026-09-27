@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atscv — éditeur de CV</title>
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" id="accent" href="/api/style.css?accent={{.Accent}}&amp;size={{.Body}}">
+<script src="/static/htmx.min.js" defer></script>
+<script src="/static/app.js" defer></script>
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <a href="/"><strong>atscv</strong></a>
+    <span class="muted">éditeur de CV</span>
+  </div>
+  <div class="sessions">
+    <label class="sr-only" for="session">Session</label>
+    <select id="session" aria-label="Session"></select>
+    <button type="button" id="session-new" title="Nouvelle session">+</button>
+    <button type="button" id="session-rename" title="Renommer">✎</button>
+    <button type="button" id="session-duplicate" title="Dupliquer">⧉</button>
+    <button type="button" id="session-delete" title="Supprimer" class="danger">🗑</button>
+  </div>
+  <div class="topbar-actions">
+    <span id="save-state" class="muted" role="status" aria-live="polite"></span>
+    <label class="toggle"><input type="checkbox" id="ascii"> sans accents</label>
+    <button type="button" id="import-btn">Importer</button>
+    <button type="button" id="export-btn">Exporter JSON</button>
+    <input type="file" id="import-file" accept="application/json,.json" hidden>
+  </div>
+</header>
+
+<main class="layout">
+  <!--
+    The form holds no field: the editor is built from the schema the server
+    publishes. It exists to carry the JSON to the API, which is what makes the
+    server stateless.
+  -->
+  <form id="cv" class="editor" autocomplete="off">
+    <input type="hidden" name="data" id="data">
+    <input type="hidden" name="name" id="name-field">
+    <input type="hidden" name="ascii" id="ascii-field">
+    <div id="schema-target"></div>
+  </form>
+
+  <aside class="output">
+    <nav class="tabs" role="tablist">
+      <button type="button" role="tab" class="tab is-active" data-tab="preview" aria-selected="true">Aperçu</button>
+      <button type="button" role="tab" class="tab" data-tab="report" aria-selected="false">Diagnostic</button>
+      <button type="button" role="tab" class="tab" data-tab="text" aria-selected="false">Texte brut</button>
+    </nav>
+
+    <div class="tabpanel is-active" id="panel-preview" role="tabpanel">
+      <div id="preview"
+           hx-post="/api/preview"
+           hx-trigger="cv:change from:body, load"
+           hx-swap="innerHTML"
+           hx-include="#cv">
+        <p class="empty">L’aperçu apparaît ici.</p>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="panel-report" role="tabpanel">
+      <div id="report"
+           hx-post="/api/lint"
+           hx-trigger="cv:change from:body, load"
+           hx-swap="innerHTML"
+           hx-include="#cv">
+        <p class="empty">Le diagnostic apparaît ici.</p>
+      </div>
+    </div>
+
+    <div class="tabpanel" id="panel-text" role="tabpanel">
+      <div id="plaintext"
+           hx-post="/api/text"
+           hx-trigger="cv:change from:body, load"
+           hx-swap="innerHTML"
+           hx-include="#cv">
+        <p class="empty">L’ordre de lecture qu’un parser extrait apparaît ici.</p>
+      </div>
+    </div>
+
+    <div class="downloads">
+      <button type="button" data-format="docx">Télécharger DOCX</button>
+      <button type="button" data-format="pdf">Télécharger PDF</button>
+      <button type="button" data-format="adoc">Télécharger ADOC</button>
+      <button type="button" data-format="txt">Télécharger TXT</button>
+    </div>
+  </aside>
+</main>
+
+<div class="toast" id="toast" role="alert" aria-live="assertive" hidden></div>
+</body>
+</html>

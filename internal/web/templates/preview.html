@@ -1,0 +1,35 @@
+{{/*
+  The preview reads the same layout stream as the PDF and the DOCX, so it shows
+  the real reading order and the real typographic hierarchy.
+
+  The accent and the body size come from the server options, but they travel in
+  a stylesheet served by /api/style.css rather than in a style attribute: the
+  Content-Security-Policy of the editor allows no inline style, and a policy
+  that is always violated is a policy nobody reads.
+*/}}
+<article class="cv">
+  {{$firstSection := true}}
+  {{range .Layout.Blocks}}
+    {{if eq .Kind 0}}
+      <h1 class="cv-name">{{.Text}}</h1>
+    {{else if eq .Kind 1}}
+      <p class="cv-headline">{{.Text}}</p>
+    {{else if eq .Kind 2}}
+      <p class="cv-contact">{{.Text}}</p>
+    {{else if eq .Kind 3}}
+      {{if $firstSection}}<hr class="cv-header-rule">{{end}}
+      {{$firstSection = false}}
+      <h2 class="cv-section">{{.Text}}</h2>
+    {{else if eq .Kind 4}}
+      <h3 class="cv-entry">{{.Text}}</h3>
+    {{else if eq .Kind 5}}
+      <p class="cv-meta">{{.Text}}</p>
+    {{else if eq .Kind 6}}
+      {{if .Text}}<p class="cv-summary">{{.Text}}</p>{{end}}
+    {{else if eq .Kind 7}}
+      <p class="cv-bullet"><span class="cv-dash" aria-hidden="true">-</span><span>{{.Text}}</span></p>
+    {{else if eq .Kind 8}}
+      <p class="cv-field">{{if .Bold}}<span class="cv-label">{{.Bold}}: </span>{{end}}<span>{{.Text}}</span></p>
+    {{end}}
+  {{end}}
+</article>

@@ -1,0 +1,110 @@
+{
+  "name": "Camille Fontaine",
+  "headline": "Ingénieure backends Go et Postgres",
+  "lang": "fr",
+  "contact": {
+    "city": "Nantes",
+    "country": "France",
+    "email": "camille.fontaine@example.org",
+    "phone": "+33 6 12 34 56 78",
+    "links": [
+      {
+        "label": "GitHub",
+        "url": "https://github.com/cfontaine"
+      }
+    ]
+  },
+  "summary": "Six ans de backends sur des plateformes de paiement et de logistique, dont deux ans en astreinte sur des services critiques. J'aime les sujets où la contrainte est une donnée plutôt qu'un accident.",
+  "experience": [
+    {
+      "title": "Ingénieure backends",
+      "company": "Kerion Systems",
+      "location": "Nantes",
+      "start": "2022-03",
+      "end": "2026-08",
+      "summary": "Services de paiement d'une marketplace B2B, 40 transactions par seconde en pointe.",
+      "highlights": [
+        "Réécriture du moteur de commissions, 1,2 s à 340 ms sur le pic trimestriel",
+        "Bascule des écritures vers une file d'attente, exactly-once vérifié en test de charge",
+        "Revue de schéma mise en place, 3 migrations cassantes évitées en un an"
+      ],
+      "stack": [
+        "Go",
+        "PostgreSQL",
+        "Kafka",
+        "Kubernetes"
+      ]
+    },
+    {
+      "title": "Développeuse backends",
+      "company": "Alizé Logistique",
+      "location": "Rennes",
+      "start": "2020-01",
+      "end": "2022-02",
+      "summary": "Planification de tournées pour 400 entrepôts, API publique et application interne.",
+      "highlights": [
+        "Extraction du moteur de coût des tournées, planning de 8 h ramené à 90 s",
+        "API publique versionnée, 40 intégrateurs migrés sans coupure",
+        "Migration des tests à table, couverture de 31 % à 78 % sur le module de coût"
+      ],
+      "stack": [
+        "Go",
+        "MySQL",
+        "Redis"
+      ]
+    }
+  ],
+  "education": [
+    {
+      "degree": "Ingénieure en informatique",
+      "school": "ENSEA",
+      "location": "Rouen",
+      "start": "2016-09",
+      "end": "2019-06"
+    }
+  ],
+  "skills": [
+    {
+      "category": "Langages",
+      "items": [
+        "Go",
+        "Python",
+        "SQL"
+      ]
+    },
+    {
+      "category": "Données",
+      "items": [
+        "PostgreSQL",
+        "MySQL",
+        "Redis",
+        "Kafka"
+      ]
+    },
+    {
+      "category": "Exploitation",
+      "items": [
+        "Kubernetes",
+        "Docker",
+        "Grafana"
+      ]
+    }
+  ],
+  "activities": [
+    {
+      "name": "Mentorat Go",
+      "organization": "Codeurs Rennais",
+      "summary": "Sessions de mentorat pour des développeurs qui débutent en Go."
+    }
+  ],
+  "languages": [
+    {
+      "name": "Français",
+      "level": "Langue maternelle"
+    },
+    {
+      "name": "Anglais",
+      "level": "Courant"
+    }
+  ]
+}

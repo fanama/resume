@@ -1,0 +1,210 @@
+<!DOCTYPE html>
+<html lang="{{.Lang}}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>atscv — un CV que les ATS lisent</title>
+<meta name="description" content="atscv décrit un CV une fois, en JSON, puis le rend en DOCX, PDF, AsciiDoc et texte brut, avec un linter ATS et une pagination mesurée.">
+<link rel="stylesheet" href="/static/app.css">
+<link rel="stylesheet" id="accent" href="/api/style.css?accent={{.Accent}}&amp;size={{.Body}}">
+<link rel="stylesheet" href="/static/home.css">
+</head>
+<body class="home">
+<a class="skip" href="#contenu">Aller au contenu</a>
+
+<header class="masthead">
+  <div class="shell masthead-inner">
+    <a class="wordmark" href="/"><strong>atscv</strong><span class="muted">CV pour ATS</span></a>
+    <nav aria-label="Sections de la page">
+      <a href="#regle">La règle</a>
+      <a href="#etapes">Comment</a>
+      <a href="#linter">Linter</a>
+      <a href="#pagination">Pagination</a>
+      <a href="#installation">Installation</a>
+    </nav>
+    <a class="button primary" href="/editor">Ouvrir l’éditeur</a>
+  </div>
+</header>
+
+<main id="contenu" class="shell">
+
+  <section class="hero">
+    <p class="eyebrow">Applicant Tracking Systems · Go · une seule dépendance</p>
+    <h1>Un CV que les ATS lisent, et que le recruteur finit.</h1>
+    <p class="lead">atscv décrit votre CV une seule fois, dans un fichier JSON, puis le rend
+    en <b>DOCX</b>, <b>PDF</b>, <b>AsciiDoc</b> et <b>texte brut</b>. Les quatre sorties
+    partagent le même flux de blocs&nbsp;: ce qu’un parser extrait du PDF, il l’extrait aussi
+    du DOCX, dans le même ordre.</p>
+    <p class="actions">
+      <a class="button primary" href="/editor">Ouvrir l’éditeur</a>
+      <a class="button" href="#installation">Installer</a>
+    </p>
+    <ul class="facts">
+      <li><b>1</b> source JSON</li>
+      <li><b>4</b> formats</li>
+      <li><b>1</b> dépendance, la bibliothèque PDF</li>
+      <li><b>0</b> compte, <b>0</b> octet envoyé à un tiers</li>
+    </ul>
+  </section>
+
+  <section id="regle">
+    <h2>Un CV est un document, pas une page blanche</h2>
+    <p>Un parser ne lit pas une mise en page&nbsp;: il lit des blocs de texte, dans l’ordre.
+    Tout ce qui n’est pas du texte — une image de mise en page, un tableau à deux colonnes,
+    une zone de texte, un PDF dont les glyphes sont des dessins — disparaît ou perd sa place.
+    atscv ne produit que la première catégorie.</p>
+    <div class="cards">
+      <article>
+        <h3>Une seule colonne</h3>
+        <p>Le parcours de lecture d’un parser suit l’ordre du flux. Une colonne, c’est cet
+        ordre-là, et rien d’autre à deviner.</p>
+      </article>
+      <article>
+        <h3>Du texte, pas des images</h3>
+        <p>Le DOCX comme le PDF contiennent des caractères, pas des dessins. Un `.docx` est
+        un ZIP d’XML, un PDF une page de glyphes indexés&nbsp;: les deux s’extraient.</p>
+      </article>
+      <article>
+        <h3>Le même ordre partout</h3>
+        <p>Les quatre renderers partagent le même modèle de blocs, donc le même ordre de
+        lecture. Le PDF ne réordonne pas ce que le DOCX a sequencé.</p>
+      </article>
+      <article>
+        <h3>Rien ne disparaît</h3>
+        <p>Pas de pied de page, pas de numéro, pas de texte alternatif qui porterait seul
+        une information. Tout ce qui est écrit est dans le flux.</p>
+      </article>
+    </div>
+  </section>
+
+  <section id="etapes">
+    <h2>Trois étapes, et rien à installer pour essayer</h2>
+    <ol class="steps">
+      <li>
+        <h3>Décrire</h3>
+        <p>Un JSON strict&nbsp;: un champ inconnu est rejeté, pas ignoré. Une typo dans une clé
+        échoue tout de suite, au lieu de disparaître du CV. L’éditeur web construit ce JSON
+        pour vous, section par section.</p>
+      </li>
+      <li>
+        <h3>Vérifier</h3>
+        <p><code>atscv lint</code> note ce qu’un parser perd ou ce qui coûte des points, et
+        <code>atscv check</code> sort en erreur dès qu’une information se perd. Les deux
+        sont faits pour une CI.</p>
+      </li>
+      <li>
+        <h3>Exporter</h3>
+        <p>Un JSON, quatre fichiers. Le <code>.docx</code> pour l’envoi, le <code>.pdf</code>
+        pour l’archive, l’AsciiDoc pour la version web, le <code>.txt</code> pour vérifier
+        soi-même ce qu’un ATS lit.</p>
+      </li>
+    </ol>
+  </section>
+
+  <section id="linter">
+    <h2>Ce que perd un parser, écrit noir sur blanc</h2>
+    <p>Le linter n’est pas un correcteur de style. Il porte sur ce qui disparaît à
+    l’extraction, et sur ce qui coûte un point à une recherche par mot-clé.</p>
+    <pre class="code"><code>$ atscv lint -i data/resume.demo.json
+warning dates.start            activities[0]      the period has no start date
+        → an undated entry is invisible to a chronological filter
+
+readability 71/100 | ~1 page(s) | 232 words | 4 entries | 6 achievement lines, 5 with a figure | 10 skills</code></pre>
+    <ul class="scale">
+      <li><b class="sev-error">error</b> l’information sera perdue ou illisible à l’extraction&nbsp;; la commande sort en 1.</li>
+      <li><b class="sev-warn">warning</b> un filtre, une recherche par mot-clé ou un recruteur perdra un point.</li>
+      <li><b class="sev-info">info</b> une suggestion, pas un défaut.</li>
+    </ul>
+  </section>
+
+  <section id="pagination">
+    <h2>La pagination se mesure, elle ne s’espère pas</h2>
+    <p>Un CV qui déborde sur une deuxième page n’est pas un problème de mise en page, et
+    personne ne le signale à votre place. atscv fait tourner le vrai moteur, avec la vraie
+    police, avant de compter.</p>
+    <ul class="rules">
+      <li>Un titre de rubrique ne reste jamais seul en bas de page&nbsp;: le titre, son filet et la première ligne vont ensemble.</li>
+      <li>Une entrée qui tient sur une page y reste entière&nbsp;; une expérience, une formation, une activité ne se coupent pas en deux.</li>
+      <li>Une entrée plus haute qu’une page se coupe quand même, mais son titre, ses dates et la première ligne de son corps restent ensemble.</li>
+    </ul>
+    <pre class="code"><code>$ atscv check -i data/resume.demo.json
+ok: 232 words, 4 entries, 10 skills, 1 page</code></pre>
+    <p class="note">Le <code>.docx</code> applique les mêmes trois règles avec les propriétés
+    de paragraphe que Word comprend&nbsp;: <code>keepNext</code> sur les titres et le corps de
+    chaque entrée, <code>keepLines</code> sur les titres. Quand une entrée dépasse la hauteur
+    d’une page, Word ignore <code>keepNext</code> et coupe là où il peut, comme le PDF.</p>
+  </section>
+
+  <section id="editeur">
+    <h2>L’éditeur, servi par le binaire lui-même</h2>
+    <div class="cards two">
+      <article>
+        <h3>Chez vous, sur votre machine</h3>
+        <p><code>atscv serve</code> n’écoute que sur le loopback&nbsp;: une adresse publique
+        est refusée au démarrage. Vos sessions vivent dans le <code>localStorage</code> du
+        navigateur, le serveur ne garde rien.</p>
+      </article>
+      <article>
+        <h3>Sans compte et sans tiers</h3>
+        <p>Aucune inscription, aucun envoi, aucune police distante&nbsp;: htmx est embarqué
+        dans le binaire et la politique de sécurité interdit tout ce qui sort du serveur,
+        styles et scripts compris.</p>
+      </article>
+      <article>
+        <h3>Aperçu, diagnostic, texte brut</h3>
+        <p>Trois vues sur le même contenu&nbsp;: le rendu, le rapport du linter, et l’ordre
+        de lecture qu’un parser extrait. Les trois se mettent à jour à la frappe.</p>
+      </article>
+      <article>
+        <h3>Import et export</h3>
+        <p>Un JSON entre, un JSON sort&nbsp;; les quatre formats se téléchargent depuis la
+        même page. Vos données restent un fichier que vous détenez.</p>
+      </article>
+    </div>
+    <p class="actions"><a class="button primary" href="/editor">Ouvrir l’éditeur</a></p>
+  </section>
+
+  <section id="formats">
+    <h2>Quatre formats, un seul flux de blocs</h2>
+    <table>
+      <caption class="sr-only">Les quatre formats produits par atscv et leur usage</caption>
+      <thead>
+        <tr><th scope="col">Format</th><th scope="col">Pour quoi</th></tr>
+      </thead>
+      <tbody>
+        <tr><th scope="row"><code>.docx</code></th><td>L’envoi à un recruteur&nbsp;; Word est le moteur ATS le plus courant.</td></tr>
+        <tr><th scope="row"><code>.pdf</code></th><td>L’archive, et le rendu que l’on veut voir avant d’envoyer.</td></tr>
+        <tr><th scope="row"><code>.adoc</code></th><td>La version web, versionnable dans un dépôt.</td></tr>
+        <tr><th scope="row"><code>.txt</code></th><td>La vérité&nbsp;: l’ordre de lecture brut, sans mise en forme.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="installation">
+    <h2>Installation</h2>
+    <pre class="code"><code>$ cd atscv
+$ go build -o atscv .
+$ ./atscv check -i data/resume.demo.json
+ok: 232 words, 4 entries, 10 skills, 1 page</code></pre>
+    <p>Ensuite&nbsp;:</p>
+    <pre class="code"><code># Les trois formats principaux, dans un répertoire
+$ ./atscv build -i data/resume.demo.json -o dist/
+
+# L’éditeur web, sur le loopback
+$ ./atscv serve</code></pre>
+    <p class="note">Les sorties montrées sur cette page sont celles de
+    <code>data/resume.demo.json</code>, un CV fictif livré avec le dépôt&nbsp;: elles sont
+    produites par la commande, pas écrites à la main, et un test vérifie qu’elles
+    correspondent toujours à la sortie réelle.</p>
+  </section>
+
+</main>
+
+<footer class="shell foot">
+  <p><strong>atscv</strong> — générateur de CV pour Applicant Tracking Systems.
+  Écrit en Go, une dépendance&nbsp;: la bibliothèque PDF.</p>
+  <p class="muted">L’éditeur ne stocke rien sur le serveur, et la page ne charge rien
+  depuis un tiers.</p>
+</footer>
+</body>
+</html>

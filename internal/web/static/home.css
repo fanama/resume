@@ -1,0 +1,332 @@
+/* The landing page. It loads app.css first, on purpose: the colours, the accent
+   and the type scale are the same ones the editor uses, so the site does not
+   look like a second project that happens to share a name. Only the layout
+   lives here, and every class is scoped under .home. */
+
+.home {
+  --measure: 68ch;
+  background: var(--panel);
+  color: var(--ink);
+}
+
+.home .shell {
+  max-width: 940px;
+  margin: 0 auto;
+  padding: 0 24px;
+}
+
+.home .skip {
+  position: absolute;
+  left: -9999px;
+}
+.home .skip:focus {
+  left: 12px;
+  top: 12px;
+  z-index: 20;
+  background: var(--panel);
+  border: 2px solid var(--accent);
+  border-radius: var(--radius);
+  padding: 8px 12px;
+}
+
+/* ---- masthead ---- */
+
+.masthead {
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  top: 0;
+  z-index: 10;
+}
+
+.masthead-inner {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+  min-height: 60px;
+  flex-wrap: wrap;
+}
+
+.wordmark {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+.wordmark strong { font-size: 19px; letter-spacing: -0.01em; }
+
+.masthead nav {
+  display: flex;
+  gap: 18px;
+  margin-left: auto;
+  flex-wrap: wrap;
+}
+.masthead nav a {
+  color: var(--faint);
+  text-decoration: none;
+  font-size: 14px;
+}
+.masthead nav a:hover { color: var(--accent); }
+
+/* ---- hero ---- */
+
+.hero {
+  padding: 72px 0 56px;
+  border-bottom: 1px solid var(--line);
+}
+
+.eyebrow {
+  margin: 0 0 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+.hero h1 {
+  margin: 0 0 18px;
+  font-size: clamp(30px, 5.2vw, 46px);
+  line-height: 1.12;
+  letter-spacing: -0.02em;
+  max-width: 20ch;
+}
+
+.lead {
+  margin: 0 0 26px;
+  font-size: 18px;
+  line-height: 1.6;
+  color: var(--dim);
+  max-width: var(--measure);
+}
+
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 0 0 34px;
+}
+
+.button {
+  display: inline-block;
+  padding: 10px 18px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: none;
+  cursor: pointer;
+}
+.button:hover { border-color: var(--accent); color: var(--accent); }
+.button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.button.primary:hover { color: #fff; opacity: 0.92; }
+
+.facts {
+  list-style: none;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 30px;
+  margin: 0;
+  padding: 0;
+  color: var(--faint);
+  font-size: 14px;
+}
+.facts b { color: var(--accent); font-size: 16px; }
+
+/* ---- sections ---- */
+
+.home section {
+  padding: 52px 0;
+  border-bottom: 1px solid var(--line);
+}
+.home section:last-of-type { border-bottom: 0; }
+
+.home h2 {
+  margin: 0 0 14px;
+  font-size: 26px;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  max-width: 30ch;
+}
+
+.home section > p {
+  margin: 0 0 20px;
+  max-width: var(--measure);
+  line-height: 1.65;
+}
+
+.home h3 {
+  margin: 0 0 6px;
+  font-size: 16px;
+  letter-spacing: -0.005em;
+}
+
+.home p { margin-top: 0; }
+.home a { color: var(--accent); }
+
+.note {
+  font-size: 14px;
+  color: var(--faint);
+  line-height: 1.6;
+}
+
+/* ---- cards ---- */
+
+.cards {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+
+.cards article {
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  background: var(--bg);
+}
+.cards p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--dim);
+}
+
+/* ---- steps ---- */
+
+.steps {
+  list-style: none;
+  counter-reset: step;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 22px;
+  margin: 24px 0 0;
+  padding: 0;
+}
+.steps li {
+  counter-increment: step;
+  border-top: 2px solid var(--accent);
+  padding-top: 12px;
+}
+.steps h3::before {
+  content: counter(step) ". ";
+  color: var(--accent);
+}
+.steps p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--dim);
+}
+
+/* ---- code ---- */
+
+.code {
+  background: #14181f;
+  color: #e6e9ef;
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  overflow-x: auto;
+  font: 13px/1.65 ui-monospace, SFMono-Regular, Menlo, monospace;
+  margin: 0 0 20px;
+}
+.code code { background: none; color: inherit; padding: 0; }
+
+.home code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.92em;
+}
+
+/* ---- linter scale ---- */
+
+.scale {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+  max-width: var(--measure);
+}
+.scale li {
+  font-size: 14px;
+  line-height: 1.6;
+  color: var(--dim);
+  border-left: 3px solid var(--line);
+  padding-left: 12px;
+}
+.scale b { text-transform: uppercase; letter-spacing: 0.04em; font-size: 12px; }
+.sev-error { color: var(--error); }
+.sev-warn { color: var(--warn); }
+.sev-info { color: #5b7ba8; }
+
+/* ---- rules ---- */
+
+.rules {
+  margin: 0 0 20px;
+  padding: 0;
+  list-style: none;
+  max-width: var(--measure);
+}
+.rules li {
+  position: relative;
+  padding-left: 26px;
+  margin-bottom: 10px;
+  line-height: 1.6;
+  color: var(--dim);
+}
+.rules li::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 12px;
+  height: 2px;
+  background: var(--accent);
+}
+
+/* ---- table ---- */
+
+.home table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 15px;
+}
+.home th, .home td {
+  text-align: left;
+  vertical-align: top;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+}
+.home thead th {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--faint);
+  border-bottom: 2px solid var(--accent);
+}
+.home tbody th { white-space: nowrap; color: var(--accent); }
+.home tbody td { color: var(--dim); }
+
+/* ---- footer ---- */
+
+.foot {
+  padding: 32px 24px 48px;
+  border-top: 1px solid var(--line);
+  color: var(--faint);
+  font-size: 14px;
+}
+.foot p { margin: 0 0 6px; max-width: var(--measure); }
+
+@media (max-width: 720px) {
+  .masthead nav { display: none; }
+  .hero { padding: 44px 0 36px; }
+  .home section { padding: 38px 0; }
+}

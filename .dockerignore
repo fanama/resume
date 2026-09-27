@@ -1,0 +1,11 @@
+# Tout ce qui n'est pas nécessaire à la construction du binaire. Le contexte de
+# build est envoyé au démon Docker en entier, sans ce fichier : le dépôt
+# vacationnerait sur la machine de build.
+.git
+.gitignore
+*.pdf
+*.docx
+*.adoc
+*.html
+atscv
+dist/

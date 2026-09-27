@@ -1,0 +1,27 @@
+# Le binaire produit par "go build -o atscv ." ou "go install .".
+# "/resume" vient d'un ancien nom de binaire : il ne matche pas "resume.pdf".
+/atscv
+/resume
+/atscv.exe
+
+# Les documents rendus par "./atscv build". Le dossier de sortie est libre, la
+# convention du README est dist/ :
+#   ./atscv build -i data/resume.fr.json -o dist/
+/dist/
+
+# Un rendu jetable écrit à la racine pour l'inspecter, par exemple :
+#   ./atscv build -i data/resume.fr.json -o cv.pdf -f pdf
+/cv.*
+/scratch/
+
+# Ce que le compilateur laisse derrière lui.
+*.test
+*.out
+coverage.*
+
+# L'ancien outillage AsciiDoc (resume.adoc, components/*.adoc, resume.html,
+# resume.pdf, resume-v0.pdf, sheet.*) a été supprimé : les données du CV vivent
+# dans data/resume.*.json. L'historique git les conserve, par exemple
+#   git show HEAD:components/skills.adoc
+# Aucun motif "*.pdf" ou "*.adoc" n'est ajouté ici : un document rendu à la
+# racine doit rester visible tant qu'on n'a pas décidé qu'il est jetable.
