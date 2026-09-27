@@ -9,6 +9,8 @@ import (
 	"net/http/httptest"
 	"net/url"
 	"reflect"
+	"regexp"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -868,4 +870,114 @@ func TestTheServedEditorCanReorderAchievements(t *testing.T) {
 	if found < 3 {
 		t.Errorf("only %d sections expose a highlights field, expected at least 3", found)
 	}
+}
+
+// TestTheLayoutIsMobileFirst pins the shape of the layout, not its looks. There
+// is no browser in this project's test suite, so the properties that can be
+// checked are the ones worth checking: a viewport is declared, no rule undoes
+// itself at a max-width, and no column is wider than the narrowest screen the
+// app claims to support.
+func TestTheLayoutIsMobileFirst(t *testing.T) {
+	srv := testServer(t)
+
+	// Without a viewport, a phone lays the page out at 980px and zooms out.
+	for _, page := range []string{"/", "/editor"} {
+		html := get(t, srv, page).Body.String()
+		if !strings.Contains(html, `name="viewport"`) {
+			t.Errorf("%s declares no viewport: a phone would render it at 980px", page)
+		}
+		if !strings.Contains(html, `width=device-width`) {
+			t.Errorf("%s has a viewport that does not follow the device width", page)
+		}
+	}
+
+	// Mobile first means the base rules describe a phone and the media queries
+	// only add. A max-width query is the desktop-first spelling, and its return
+	// is what makes a layout break on a screen nobody tested.
+	for _, name := range []string{"app.css", "home.css"} {
+		css := get(t, srv, "/static/"+name).Body.String()
+		for _, mq := range regexp.MustCompile(`@media[^{]*max-width`).FindAllString(css, -1) {
+			t.Errorf("%s uses a desktop-first query %q: write the phone layout as the base instead", name, strings.TrimSpace(mq))
+		}
+	}
+
+	// A fixed column wider than a 320px screen, minus the shell padding, would
+	// scroll the page sideways. It is only safe inside a media query, which
+	// already assumes a wider screen, so only the base rules are checked.
+	const narrow = 320 - 48
+	track := regexp.MustCompile(`minmax\(\s*(\d+)px\s*,\s*1fr\s*\)`)
+	for _, name := range []string{"app.css", "home.css"} {
+		css := get(t, srv, "/static/"+name).Body.String()
+
+		// Walk the file keeping a stack of open blocks, flagged for whether each
+		// one is a media query. A declaration sits one level below its selector,
+		// so the stack is the only way to tell "in the base rules" from "inside a
+		// query" without a CSS parser.
+		var stack []bool
+		var buf strings.Builder
+		flush := func(text string, inMedia bool) {
+			if inMedia {
+				return
+			}
+			for _, m := range track.FindAllStringSubmatch(text, -1) {
+				if w := atoiOrZero(m[1]); w > narrow {
+					t.Errorf("%s has a %dpx column in its base rules, wider than the %dpx left on a 320px screen", name, w, narrow)
+				}
+			}
+		}
+		inQuery := func() bool {
+			for _, isMedia := range stack {
+				if isMedia {
+					return true
+				}
+			}
+			return false
+		}
+		for _, r := range css {
+			switch {
+			case r == '{':
+				// The text before the brace is a selector, and it is what says
+				// whether the block being opened is a media query.
+				sel := buf.String()
+				buf.Reset()
+				flush(sel, inQuery())
+				stack = append(stack, strings.Contains(sel, "@media"))
+			case r == '}':
+				// The text before a closing brace is a declaration block.
+				decls := buf.String()
+				buf.Reset()
+				flush(decls, inQuery())
+				if len(stack) > 0 {
+					stack = stack[:len(stack)-1]
+				}
+			default:
+				buf.WriteRune(r)
+			}
+		}
+	}
+}
+
+// TestTouchTargetsAreSizedForFingers keeps the pointer-coarse rules in place.
+// The alternative is hiding them, which is what the masthead used to do, and a
+// page whose only navigation disappears on a phone is not responsive.
+func TestTouchTargetsAreSizedForFingers(t *testing.T) {
+	for _, name := range []string{"app.css", "home.css"} {
+		css := get(t, testServer(t), "/static/"+name).Body.String()
+		if !strings.Contains(css, "@media (pointer: coarse)") {
+			t.Errorf("%s has no touch rules: buttons and links stay mouse-sized on a phone", name)
+		}
+	}
+	// The landing page navigation must not be hidden on a narrow screen.
+	home := get(t, testServer(t), "/static/home.css").Body.String()
+	if strings.Contains(home, "display: none") && !strings.Contains(home, "nav") {
+		t.Error("the landing page hides something on a narrow screen")
+	}
+	if regexp.MustCompile(`\.masthead nav\s*\{[^}]*display:\s*none`).MatchString(home) {
+		t.Error("the landing page hides its navigation on a phone, leaving no way to reach the sections")
+	}
+}
+
+func atoiOrZero(s string) int {
+	n, _ := strconv.Atoi(s)
+	return n
 }

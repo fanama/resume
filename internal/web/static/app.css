@@ -1,7 +1,13 @@
 /* Two stylesheets in one file, on purpose: the shell is a tool, the preview is a
    document. Keeping the document rules (.cv) in a separate block makes it
    obvious that they are a transcription of internal/render/{pdf,docx}, not a
-   theme. */
+   theme.
+
+   Mobile first, throughout: the rules here describe a 360px screen, and the
+   @media blocks only add what a wider screen can afford. Nothing is undone at a
+   breakpoint, so a viewport nobody thought of still gets a usable page. The
+   narrowest screen that matters is 320px, and the widest column below is sized
+   against it. */
 
 :root {
   --ink: #1a1a1a;
@@ -39,26 +45,40 @@ html, body {
 
 .muted { color: var(--faint); font-weight: 400; }
 
-/* ---- top bar ---- */
+/* ---- top bar ----
+   On a phone this is three stacked rows, not one bar: the brand, the session
+   picker and the actions do not fit side by side at any legible size. It is not
+   sticky there, because a header that eats a third of a short screen is worse
+   than one that scrolls away. */
 
 .topbar {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 16px;
-  padding: 10px 16px;
+  gap: 8px;
+  padding: 8px 12px;
   background: var(--panel);
   border-bottom: 1px solid var(--line);
-  position: sticky;
-  top: 0;
-  z-index: 10;
 }
 
-.brand { display: flex; align-items: baseline; gap: 8px; }
-.brand strong { font-size: 18px; letter-spacing: -0.01em; }
+.brand { display: flex; align-items: baseline; gap: 8px; flex: 1 1 auto; min-width: 0; }
+.brand strong { font-size: 18px; letter-spacing: -0.01em; white-space: nowrap; }
 .brand a { text-decoration: none; color: inherit; }
+/* The subtitle is the first thing to go: it repeats the page title. */
+.brand .muted { display: none; }
 
-.sessions { display: flex; align-items: center; gap: 6px; margin-left: auto; }
-.topbar-actions { display: flex; align-items: center; gap: 10px; }
+/* Four session buttons at a finger's width are 176px before the gaps, which on a
+   320px screen leaves the session picker too little room to show its own name.
+   So the picker takes the first row and the buttons the second, and both fit. */
+.sessions { display: flex; align-items: center; gap: 6px; flex: 1 1 100%; min-width: 0; flex-wrap: wrap; }
+.topbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1 1 100%;
+  min-width: 0;
+  flex-wrap: wrap;
+}
 
 button, select, input[type="text"] {
   font: inherit;
@@ -66,7 +86,7 @@ button, select, input[type="text"] {
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
-  padding: 5px 10px;
+  padding: 7px 10px;
   cursor: pointer;
 }
 
@@ -75,9 +95,9 @@ button:active { transform: translateY(1px); }
 
 button.danger:hover { border-color: var(--error); color: var(--error); }
 
-.sessions button { padding: 5px 9px; line-height: 1; }
+.sessions button { padding: 7px 9px; line-height: 1; }
 
-#session { max-width: 220px; }
+#session { flex: 1 1 100%; min-width: 0; }
 
 .toggle {
   display: inline-flex;
@@ -87,22 +107,38 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   font-size: 13px;
   cursor: pointer;
   user-select: none;
+  white-space: nowrap;
 }
 
-#save-state { font-size: 13px; min-width: 90px; text-align: right; }
+#save-state { font-size: 13px; min-width: 0; }
 
-/* ---- layout ---- */
+@media (min-width: 600px) {
+  .brand .muted { display: inline; }
+  #save-state { min-width: 90px; text-align: right; }
+  .sessions { flex-wrap: nowrap; }
+  #session { flex: 1 1 auto; max-width: 220px; }
+}
+
+@media (min-width: 1000px) {
+  .topbar { flex-wrap: nowrap; gap: 16px; padding: 10px 16px; position: sticky; top: 0; z-index: 10; }
+  .sessions { flex: 0 1 auto; margin-left: auto; }
+  .topbar-actions { flex: 0 0 auto; flex-wrap: nowrap; }
+}
+
+/* ---- layout ----
+   One column first. The form comes before the output in the document, so on a
+   phone the output lands under the form rather than under everything else. */
 
 .layout {
   display: grid;
-  grid-template-columns: minmax(380px, 1fr) minmax(420px, 1fr);
-  gap: 16px;
-  padding: 16px;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 14px;
+  padding: 12px;
   align-items: start;
 }
 
-@media (max-width: 1000px) {
-  .layout { grid-template-columns: 1fr; }
+@media (min-width: 1000px) {
+  .layout { grid-template-columns: minmax(380px, 1fr) minmax(420px, 1fr); gap: 16px; padding: 16px; }
 }
 
 /* ---- the editor ---- */
@@ -182,7 +218,13 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 }
 .field input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
-.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* Two fields that sit side by side on a desk are stacked on a phone: at 360px
+   each half is 150px, which is narrower than the label of a date. */
+.grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+
+@media (min-width: 480px) {
+  .grid2 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
 
 /* a repeatable list of short strings */
 .list { display: grid; gap: 5px; }
@@ -193,17 +235,21 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 .add { margin-top: 8px; font-size: 13px; }
 .empty { color: var(--faint); font-size: 13px; margin: 0; }
 
-/* ---- output panel ---- */
+/* ---- output panel ----
+   Not sticky on a phone. Pinned, it would sit on top of the form the user is
+   filling in, and capped to a viewport height it would turn the page into a
+   scroll trap. Stacked below the form it is just another block of the page. */
 
 .output {
-  position: sticky;
-  top: 68px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: var(--radius);
   display: grid;
   grid-template-rows: auto 1fr auto;
-  max-height: calc(100vh - 96px);
+}
+
+@media (min-width: 1000px) {
+  .output { position: sticky; top: 68px; max-height: calc(100vh - 96px); }
 }
 
 .tabs { display: flex; gap: 0; border-bottom: 1px solid var(--line); }
@@ -212,12 +258,13 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   border-radius: 0;
   border-bottom: 2px solid transparent;
   background: none;
-  padding: 9px 14px;
+  padding: 10px 14px;
   color: var(--faint);
+  white-space: nowrap;
 }
 .tab.is-active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
 
-.tabpanel { display: none; overflow: auto; padding: 16px; }
+.tabpanel { display: none; overflow: auto; padding: 14px; }
 .tabpanel.is-active { display: block; }
 
 .downloads {
@@ -228,7 +275,19 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   background: #fafafa;
   flex-wrap: wrap;
 }
-.downloads button { flex: 1 1 auto; font-size: 13px; }
+.downloads button { flex: 1 1 140px; font-size: 13px; }
+
+/* ---- touch ----
+   A pointer that cannot hover is a finger, and a finger needs about 44px. The
+   rule is keyed on the pointer rather than the width, because a small window on
+   a desktop is still driven by a mouse. */
+
+@media (pointer: coarse) {
+  button, select { min-height: 44px; }
+  .list-row button { min-width: 44px; }
+  .tab { padding: 13px 14px; }
+  .sessions button { min-width: 44px; }
+}
 
 /* ---- the document preview ----
    A transcription of internal/render/docx/styles.go: the same scale, the same
@@ -237,7 +296,10 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 .cv {
   max-width: 182mm;
   margin: 0 auto;
-  padding: 14mm;
+  /* 14mm of paper margin is right for a document and wrong for a phone: it
+     would eat a third of the width. Narrow screens get the document look with
+     a margin that fits. */
+  padding: 20px 14px;
   background: #fff;
   border: 1px solid var(--line);
   border-radius: 3px;
@@ -248,6 +310,10 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   font-size: var(--body, 10.5pt);
   line-height: 1.32;
   color: #000;
+}
+
+@media (min-width: 720px) {
+  .cv { padding: 14mm; }
 }
 
 .cv-name {
@@ -349,6 +415,9 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   left: 50%;
   bottom: 22px;
   transform: translateX(-50%);
+  /* A long filename would push the toast off a narrow screen, since a fixed
+     element is sized by its content and ignores the padding of the page. */
+  max-width: calc(100vw - 24px);
   background: var(--ink);
   color: #fff;
   padding: 9px 16px;

@@ -544,3 +544,39 @@ func TestServeReadsTheEnvironment(t *testing.T) {
 		t.Errorf("envOrFloat on garbage = %v, want the default", v)
 	}
 }
+
+// TestTheImageLeavesTheInjectedPortAlone guards the one thing about the image
+// that decides whether a hosted deploy answers at all. A platform that injects
+// PORT, as Render and Cloud Run both do, is ignored by serveAddr as soon as
+// ATSCV_ADDR is set, and an ATSCV_ADDR baked into the image would pin every
+// deploy to 8080 while the platform routes to its own port. The proxy would then
+// talk to a closed port and the health check would keep passing, because the
+// probe reads the same wrong address, which is what makes this failure quiet.
+func TestTheImageLeavesTheInjectedPortAlone(t *testing.T) {
+	dockerfile, err := os.ReadFile("Dockerfile")
+	if err != nil {
+		t.Fatalf("reading the Dockerfile: %v", err)
+	}
+	for _, line := range strings.Split(string(dockerfile), "\n") {
+		fields := strings.Fields(line)
+		if len(fields) < 2 || fields[0] != "ENV" {
+			continue
+		}
+		if name, _, _ := strings.Cut(fields[1], "="); name == "ATSCV_ADDR" {
+			t.Errorf("the image sets ATSCV_ADDR, which overrides the port the platform injects: %q", strings.TrimSpace(line))
+		}
+	}
+
+	// A default port in the image is what makes `docker run -p 8080:8080` work,
+	// and it is what the platform replaces when it injects its own.
+	if !strings.Contains(string(dockerfile), "ENV PORT=8080") {
+		t.Error("the image sets no default PORT, so a plain docker run has no port to publish")
+	}
+
+	// The two things that make the image reachable from outside a container.
+	for _, want := range []string{"ENV ATSCV_PUBLIC=true", "ENV ATSCV_DEMO=/data/resume.demo.json"} {
+		if !strings.Contains(string(dockerfile), want) {
+			t.Errorf("the image is missing %q, so a published container is not the one described in the README", want)
+		}
+	}
+}

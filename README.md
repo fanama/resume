@@ -106,6 +106,12 @@ revenir, avec une page de chargement entre les deux.
 ajouter dans les variables d'environnement. Render produit
 `atscv.onrender.com` en HTTPS.
 
+Render injecte `PORT`, que l'image prend tel quel : c'est pourquoi le
+`Dockerfile` porte un `ENV PORT=8080` et surtout **pas** de `ATSCV_ADDR`. Un
+`ATSCV_ADDR` figé dans l'image gagnerait la priority sur le port injecté,
+l'application écouterait sur 8080, le proxy chercherait 10000, et le
+`healthcheck` resterait vert puisqu'il interroge la même mauvaise adresse.
+
 Attention au trafic sortant : depuis avril 2026, le plan gratuit n'inclut que
 5 Go par mois, contre 100 Go avant. Au-delà, 0,15 $/Go. Sans carte bancaire
 Render suspend le service, avec une carte il facture. Vingt mille visites

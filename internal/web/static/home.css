@@ -42,9 +42,10 @@
 .masthead-inner {
   display: flex;
   align-items: center;
-  gap: 24px;
+  gap: 6px 16px;
   min-height: 60px;
   flex-wrap: wrap;
+  padding-bottom: 6px;
 }
 
 .wordmark {
@@ -56,23 +57,31 @@
 }
 .wordmark strong { font-size: 19px; letter-spacing: -0.01em; }
 
+/* On a phone the links take their own row and scroll sideways if they must. They
+   used to be display:none below 720px, which left the page with no way to reach
+   any of its own sections. */
 .masthead nav {
   display: flex;
-  gap: 18px;
-  margin-left: auto;
-  flex-wrap: wrap;
+  order: 3;
+  flex: 1 0 100%;
+  gap: 16px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  scrollbar-width: none;
 }
+.masthead nav::-webkit-scrollbar { display: none; }
 .masthead nav a {
   color: var(--faint);
   text-decoration: none;
   font-size: 14px;
+  white-space: nowrap;
 }
 .masthead nav a:hover { color: var(--accent); }
 
 /* ---- hero ---- */
 
 .hero {
-  padding: 72px 0 56px;
+  padding: 44px 0 36px;
   border-bottom: 1px solid var(--line);
 }
 
@@ -143,7 +152,7 @@
 /* ---- sections ---- */
 
 .home section {
-  padding: 52px 0;
+  padding: 38px 0;
   border-bottom: 1px solid var(--line);
 }
 .home section:last-of-type { border-bottom: 0; }
@@ -177,15 +186,19 @@
   line-height: 1.6;
 }
 
-/* ---- cards ---- */
+/* ---- cards ----
+   min() matters here. A 300px track inside a 320px screen, once the shell has
+   taken its 24px padding on each side, is wider than what is left, and the grid
+   overflows sideways instead of stacking. min(300px, 100%) lets the track give
+   way. */
 
 .cards {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(220px, 100%), 1fr));
   gap: 18px;
   margin-top: 24px;
 }
-.cards.two { grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); }
+.cards.two { grid-template-columns: repeat(auto-fit, minmax(min(300px, 100%), 1fr)); }
 
 .cards article {
   border: 1px solid var(--line);
@@ -206,7 +219,7 @@
   list-style: none;
   counter-reset: step;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
   gap: 22px;
   margin: 24px 0 0;
   padding: 0;
@@ -292,7 +305,10 @@
   background: var(--accent);
 }
 
-/* ---- table ---- */
+/* ---- table ----
+   The format table has three columns of prose. Below 640px it stops being a
+   table and becomes a list of rows: a table squeezed into 320px wraps every
+   word and reads worse than no table. */
 
 .home table {
   width: 100%;
@@ -305,6 +321,7 @@
   padding: 11px 12px;
   border-bottom: 1px solid var(--line);
 }
+.home thead { display: none; }
 .home thead th {
   font-size: 12px;
   text-transform: uppercase;
@@ -312,21 +329,55 @@
   color: var(--faint);
   border-bottom: 2px solid var(--accent);
 }
-.home tbody th { white-space: nowrap; color: var(--accent); }
-.home tbody td { color: var(--dim); }
+.home tbody, .home tr, .home th, .home td { display: block; width: auto; }
+.home tbody th { white-space: normal; color: var(--accent); padding-bottom: 0; border-bottom: 0; }
+.home tbody td { color: var(--dim); padding-top: 3px; }
+.home tbody tr { border-bottom: 1px solid var(--line); padding: 10px 0; }
+.home tbody tr:last-child { border-bottom: 0; }
+
+@media (min-width: 640px) {
+  .home table { font-size: 15px; }
+  .home thead { display: table-header-group; }
+  .home tbody { display: table-row-group; }
+  .home tr { display: table-row; padding: 0; border-bottom: 0; }
+  .home th, .home td { display: table-cell; width: auto; padding: 11px 12px; border-bottom: 1px solid var(--line); }
+  .home tbody th { white-space: nowrap; padding: 11px 12px; border-bottom: 1px solid var(--line); }
+  .home tbody td { padding: 11px 12px; }
+}
 
 /* ---- footer ---- */
 
 .foot {
-  padding: 32px 24px 48px;
+  padding: 28px 24px 40px;
   border-top: 1px solid var(--line);
   color: var(--faint);
   font-size: 14px;
 }
 .foot p { margin: 0 0 6px; max-width: var(--measure); }
 
-@media (max-width: 720px) {
-  .masthead nav { display: none; }
-  .hero { padding: 44px 0 36px; }
-  .home section { padding: 38px 0; }
+/* Wide screens get more room, not different content: a wider measure, and the
+   hero and sections breathe. Everything above 719px is an enhancement. */
+@media (min-width: 480px) {
+  .home .shell { padding: 0 32px; }
+  .button { padding: 12px 22px; }
+}
+
+@media (min-width: 720px) {
+  .masthead-inner { gap: 24px; padding-bottom: 0; }
+  .masthead nav { order: 0; flex: 0 1 auto; margin-left: auto; gap: 18px; overflow-x: visible; padding-bottom: 0; }
+  .hero { padding: 72px 0 56px; }
+  .home section { padding: 52px 0; }
+  .foot { padding: 32px 32px 48px; }
+}
+
+/* ---- touch ----
+   The navigation links are a row of 14px text with no padding: a comfortable
+   mouse target, a poor finger one. Keyed on the pointer rather than the width,
+   because a narrow window on a desktop is still driven by a mouse. */
+
+@media (pointer: coarse) {
+  .button { min-height: 48px; display: inline-flex; align-items: center; }
+  .masthead nav a { padding: 10px 0; }
+  .home tbody th { padding-bottom: 0; }
+  .home tbody td { padding-top: 6px; }
 }

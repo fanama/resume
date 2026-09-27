@@ -31,10 +31,13 @@ COPY --from=build /atscv /atscv
 # La démo sert de CV de départ quand on ouvre l'éditeur dans un navigateur.
 COPY --from=build /src/data /data
 
-# ATSCV_ADDR fixe l'adresse quand elle est présente. Sinon le binaire lit PORT,
-# que tous les hébergeurs injectent, et écoute sur ce port : Render par défaut
-# à 10000, Cloud Run à 8080. Sans les deux, il retombe sur 0.0.0.0:8080.
-ENV ATSCV_ADDR=0.0.0.0:8080
+# PORT, et non ATSCV_ADDR, porte la valeur par défaut. Un ATSCV_ADDR figé dans
+# l'image l'emporterait sur le PORT que les hébergeurs injectent, et Render
+# routerait vers un port où personne n'écoute. Un PORT d'image se fait
+# remplacer par celui de la plateforme : 8080 en local et sur Cloud Run, 10000
+# sur Render. Sans aucune des deux, le binaire retombe sur la boucle locale,
+# ce qui est le comportement attendu d'un ATSCV_PUBLIC absent.
+ENV PORT=8080
 ENV ATSCV_PUBLIC=true
 ENV ATSCV_DEMO=/data/resume.demo.json
 EXPOSE 8080
