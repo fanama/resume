@@ -27,7 +27,10 @@
 
 html, body {
   margin: 0;
-  height: 100%;
+  /* min-height, not height. A sticky element cannot travel outside its
+     containing block, so a body frozen at the height of the window carried the
+     tab bars off the top of the screen as soon as the page scrolled. */
+  min-height: 100%;
   background: var(--bg);
   color: var(--ink);
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
@@ -125,6 +128,123 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   .topbar-actions { flex: 0 0 auto; flex-wrap: nowrap; }
 }
 
+/* ---- view tabs ----
+   The switch between the form and the output, on a phone only.
+
+   Stacking the two was the original plan and it does not survive a real CV: a
+   filled resume makes the form some twelve thousand pixels tall, which put the
+   preview twelve screens below the fold. A tab bar costs one row and puts both
+   one tap away.
+
+   It is sticky because it is the only way back: without it, reaching the
+   preview from the bottom of the form means scrolling the whole form again. */
+
+.viewtabs {
+  display: flex;
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  background: var(--panel);
+  border-bottom: 1px solid var(--line);
+}
+
+.viewtab {
+  flex: 1 1 0;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 12px 8px;
+  color: var(--faint);
+  font-weight: 500;
+}
+
+.viewtab.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* The panel the tabs do not select is taken out of the layout entirely, not
+   just hidden: left in the flow it would keep its scroll height and the page
+   would still be twelve screens long.
+
+   The selector is doubled to outweigh .output further down, which sets its own
+   display: a single attribute selector loses to a class of equal specificity
+   that comes later in the file, and the preview stayed on screen. */
+[data-view-panel][data-view-panel] { display: none; }
+[data-view-panel][data-view-panel].is-active { display: block; }
+
+/* ---- section tabs ----
+   The sections of the form, one at a time.
+
+   Stacked, the nine of them came to some twelve thousand pixels with a real CV
+   loaded: seventeen screens on a phone, and Expérience alone was four thousand
+   of them. Reaching Langues meant scrolling past every job in the resume.
+
+   The bar scrolls sideways rather than wrapping. Nine labels will not fit on a
+   360px screen at a readable size, and a bar that wraps to three rows costs
+   more vertical space than it saves. Sideways it stays one row at every width,
+   and the tabs keep their full label. */
+
+.sectiontabs-bar {
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  position: sticky;
+  /* Under the view tabs, which measure 50px on a phone. On a wide screen that
+     bar is hidden, so this one sits at the top of its own column instead. */
+  top: 50px;
+  z-index: 15;
+  /* Momentum scrolling stops on a tab rather than between two. */
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+
+.sectiontabs-bar::-webkit-scrollbar { display: none; }
+
+.sectiontab {
+  flex: 0 0 auto;
+  scroll-snap-align: start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 0;
+  border-bottom: 2px solid transparent;
+  background: none;
+  padding: 11px 12px;
+  color: var(--faint);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.sectiontab.is-active {
+  color: var(--ink);
+  border-bottom-color: var(--accent);
+  font-weight: 600;
+}
+
+/* The number of entries a section holds: the reason to open it, or to leave it
+   alone. An empty section carries no badge at all rather than a zero. */
+.tabcount {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 3px 6px;
+  border-radius: 999px;
+  background: var(--bg);
+  color: var(--faint);
+}
+
+.sectiontab.is-active .tabcount { background: var(--accent); color: #fff; }
+
+.sectiontabs-panel { display: none; }
+.sectiontabs-panel.is-active { display: block; }
+
 /* ---- layout ----
    One column first. The form comes before the output in the document, so on a
    phone the output lands under the form rather than under everything else. */
@@ -139,6 +259,15 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 
 @media (min-width: 1000px) {
   .layout { grid-template-columns: minmax(380px, 1fr) minmax(420px, 1fr); gap: 16px; padding: 16px; }
+  /* Both panels fit side by side, so there is nothing to switch between. The
+     tab bar goes away and the panels come back whatever the tabs last said:
+     a phone that is rotated, or a window that is widened, must not leave half
+     the page hidden behind a control that is no longer on screen. */
+  .viewtabs { display: none; }
+  .sectiontabs-bar { top: 0; }
+  [data-view-panel][data-view-panel] { display: block; }
+  /* .output sets its own display, which the line above would override. */
+  .output[data-view-panel][data-view-panel] { display: grid; }
 }
 
 /* ---- the editor ---- */
@@ -170,7 +299,12 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   color: var(--faint);
 }
 
-.card .body { padding: 12px; display: grid; gap: 10px; }
+/* min-width: 0 on the grid and on what it holds. A grid track is auto sized,
+   which means it refuses to shrink below the content it carries, so a long
+   unbroken value in a field pushed the whole column past the right edge of a
+   360px screen and every entry inside it with it. */
+.card .body { padding: 12px; display: grid; gap: 10px; min-width: 0; }
+.card .body > * { min-width: 0; }
 
 .entry {
   border: 1px solid var(--line);
@@ -197,9 +331,11 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   white-space: nowrap;
 }
 
-.entry .body { padding: 10px; display: grid; gap: 8px; }
+.entry .body { padding: 10px; display: grid; gap: 8px; min-width: 0; }
+.entry .body > * { min-width: 0; }
+.entry { min-width: 0; }
 
-.field { display: grid; gap: 3px; }
+.field { display: grid; gap: 3px; min-width: 0; }
 .field > label { font-size: 12px; color: var(--faint); }
 .field textarea, .field input {
   font: inherit;

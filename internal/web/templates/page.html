@@ -26,11 +26,23 @@
   <div class="topbar-actions">
     <span id="save-state" class="muted" role="status" aria-live="polite"></span>
     <label class="toggle"><input type="checkbox" id="ascii"> sans accents</label>
-    <button type="button" id="import-btn">Importer</button>
+    <button type="button" id="import-btn">Importer JSON ou PDF</button>
     <button type="button" id="export-btn">Exporter JSON</button>
-    <input type="file" id="import-file" accept="application/json,.json" hidden>
+    <input type="file" id="import-file" accept="application/json,.json,application/pdf,.pdf" hidden>
   </div>
 </header>
+
+<!--
+  The first level of tabs, and the only one that matters on a phone: with a real
+  CV loaded the form runs to some twelve thousand pixels, so the preview stacked
+  under it sat twelve screens down and nobody ever scrolled to it. The two are
+  switched here instead. On a wide screen both are shown side by side and this
+  bar is hidden, because there is nothing to switch.
+-->
+<nav class="viewtabs" role="tablist" aria-label="Vue">
+  <button type="button" role="tab" class="viewtab is-active" data-view="edit" aria-selected="true" aria-controls="view-edit">Édition</button>
+  <button type="button" role="tab" class="viewtab" data-view="output" aria-selected="false" aria-controls="view-output">Aperçu</button>
+</nav>
 
 <main class="layout">
   <!--
@@ -38,14 +50,14 @@
     publishes. It exists to carry the JSON to the API, which is what makes the
     server stateless.
   -->
-  <form id="cv" class="editor" autocomplete="off">
+  <form id="cv" class="editor" data-view-panel="edit" autocomplete="off">
     <input type="hidden" name="data" id="data">
     <input type="hidden" name="name" id="name-field">
     <input type="hidden" name="ascii" id="ascii-field">
     <div id="schema-target"></div>
   </form>
 
-  <aside class="output">
+  <aside class="output" data-view-panel="output">
     <nav class="tabs" role="tablist">
       <button type="button" role="tab" class="tab is-active" data-tab="preview" aria-selected="true">Aperçu</button>
       <button type="button" role="tab" class="tab" data-tab="report" aria-selected="false">Diagnostic</button>
@@ -91,6 +103,9 @@
   </aside>
 </main>
 
+<!-- The PDF import is decoded in the browser, read by the server and written
+     straight into the form: the fields are the review. It opens a new session,
+     so the work already in the editor is still there to switch back to. -->
 <div class="toast" id="toast" role="alert" aria-live="assertive" hidden></div>
 </body>
 </html>

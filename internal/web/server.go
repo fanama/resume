@@ -156,6 +156,7 @@ func (s *Server) routes() {
 	// The API. Every endpoint takes the resume as the "data" form field, or as
 	// a JSON body when the request asks for JSON.
 	s.mux.HandleFunc("POST /api/schema", s.handleSchema)
+	s.mux.HandleFunc("POST /api/import", s.handleImport)
 	s.mux.HandleFunc("POST /api/parse", s.handleParse)
 	s.mux.HandleFunc("POST /api/lint", s.handleLint)
 	s.mux.HandleFunc("POST /api/preview", s.handlePreview)

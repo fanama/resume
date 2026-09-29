@@ -361,14 +361,87 @@ function rerender() {
     const scroll = target.scrollTop;
     const onChange = () => { sync(); };
 
-    target.replaceChildren(
-      buildSingleton(schema.identity, data, onChange),
-      buildSingleton(schema.contact, data, onChange),
-      ...schema.sections.map((section) => buildSection(section, data, onChange)),
-    );
+    const cards = [
+      { key: 'identity', label: sectionLabel(schema.identity), node: buildSingleton(schema.identity, data, onChange) },
+      { key: 'contact', label: sectionLabel(schema.contact), node: buildSingleton(schema.contact, data, onChange) },
+      ...schema.sections.map((section) => ({
+        key: section.key,
+        label: sectionLabel(section),
+        count: Array.isArray(data[section.key]) ? data[section.key].length : 0,
+        node: buildSection(section, data, onChange),
+      })),
+    ];
+    target.replaceChildren(buildSectionTabs(cards));
     target.scrollTop = scroll;
     renderSessionList();
   });
+}
+
+// activeSection is the section the editor is showing. It lives outside the
+// render because rerender() rebuilds every card from scratch: without it, adding
+// a job would throw the user back to Identité on every click.
+let activeSection = 'identity';
+
+// An imported CV is a new document, so the review starts at the top. Staying on
+// whatever section happened to be open would hide the name and the experience
+// behind a tab the user never chose for this file.
+function resetSection() { activeSection = 'identity'; }
+
+/** buildSectionTabs turns the stack of section cards into a tabbed editor.
+ *
+ *  Nine sections stacked came to some twelve thousand pixels with a real CV,
+ *  seventeen screens on a phone, and Expérience alone was four thousand of
+ *  them. Finding Langues meant scrolling past every job. One section at a time
+ *  costs a row of tabs and makes the rest reachable in one tap.
+ *
+ *  Every card stays in the DOM. Only the selected one is displayed, because the
+ *  inputs hold live listeners and the model is written on the fly: building the
+ *  cards on demand would mean rewiring them, and hiding is both cheaper and
+ *  impossible to get wrong. */
+function buildSectionTabs(cards) {
+  if (!cards.some((c) => c.key === activeSection)) activeSection = cards[0].key;
+
+  const wrap = el('div', { class: 'sectiontabs' });
+  const bar = el('nav', { class: 'sectiontabs-bar', role: 'tablist' });
+  const panels = el('div', { class: 'sectiontabs-panels' });
+
+  const show = (key) => {
+    activeSection = key;
+    for (const btn of bar.children) {
+      const on = btn.dataset.section === key;
+      btn.classList.toggle('is-active', on);
+      btn.setAttribute('aria-selected', String(on));
+    }
+    for (const panel of panels.children) {
+      panel.classList.toggle('is-active', panel.dataset.section === key);
+    }
+  };
+
+  for (const card of cards) {
+    const label = el('span', { text: card.label });
+    const children = [label];
+    // The count is the reason to open a section, or to leave it alone: an empty
+    // one says so on the tab rather than after a tap.
+    if (card.count) children.push(el('span', { class: 'tabcount', text: String(card.count) }));
+
+    const btn = el('button', {
+      type: 'button',
+      class: 'sectiontab',
+      role: 'tab',
+      'data-section': card.key,
+      onclick: () => show(card.key),
+    }, children);
+    bar.appendChild(btn);
+
+    const panel = el('div', { class: 'sectiontabs-panel', 'data-section': card.key, role: 'tabpanel' });
+    panel.appendChild(card.node);
+    panels.appendChild(panel);
+  }
+
+  wrap.appendChild(bar);
+  wrap.appendChild(panels);
+  show(activeSection);
+  return wrap;
 }
 
 /** The identity and the contact block are structs: the same card, without the
@@ -534,35 +607,150 @@ function wireFiles() {
     const file = picker.files && picker.files[0];
     if (!file) return;
     try {
-      const text = await file.text();
-      const parsed = JSON.parse(text);
-      // The server is the only authority on the schema: let it validate before
-      // the draft enters the editor.
-      const res = await fetch('/api/parse?format=json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: text,
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body.error || T.label('Fichier invalide', 'Invalid file'));
-      }
-      // The answer is the resume the server parsed: unknown fields are gone and
-      // the missing ones filled, so the draft can go straight back to the API.
-      const normalized = await res.json();
-      newSession(normalized && normalized.name !== undefined ? normalized : parsed,
-        file.name.replace(/\.json$/i, ''));
-      persist();
-      rerender();
-      sync();
-      document.body.dispatchEvent(new Event('cv:change'));
-      toast(T.label('Importé', 'Imported'));
+      if (isPDF(file)) await importPDF(file);
+      else await importJSON(file);
     } catch (err) {
-      toast(err.message, 'error');
+      // The progress line is shown while the file is read, so a failure has to
+      // clear it: leaving it in place makes a broken import look like one still
+      // running.
+      hideProgress();
+      // A bug in this file reaches here as a ReferenceError or a TypeError with
+      // a message that means nothing to the candidate. The message is still
+      // logged, because that is what makes it reportable, but what is shown
+      // says which step failed.
+      console.error('import failed', err);
+      const bug = err instanceof ReferenceError || err instanceof TypeError;
+      toast(bug
+        ? T.label('Import impossible : erreur interne de l’éditeur.',
+                  'Import failed: an internal editor error.')
+        : err.message, 'error');
     } finally {
       picker.value = '';
     }
   });
+}
+
+function isPDF(file) {
+  return /\.pdf$/i.test(file.name || '') || file.type === 'application/pdf';
+}
+
+/* A JSON file is the schema's own format, so the server answers with the resume
+   it parsed and the draft replaces the session directly. */
+async function importJSON(file) {
+  const text = await file.text();
+  const parsed = JSON.parse(text);
+  // The server is the only authority on the schema: let it validate before
+  // the draft enters the editor.
+  const res = await fetch('/api/parse?format=json', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: text,
+  });
+  if (!res.ok) {
+    const body = await res.json().catch(() => ({}));
+    throw new Error(body.error || T.label('Fichier invalide', 'Invalid file'));
+  }
+  // The answer is the resume the server parsed: unknown fields are gone and
+  // the missing ones filled, so the draft can go straight back to the API.
+  const normalized = await res.json();
+  newSession(normalized && normalized.name !== undefined ? normalized : parsed,
+    file.name.replace(/\.json$/i, ''));
+  persist();
+  // Both of these decide what the next render shows, so they come before it.
+  resetSection();
+  rerender();
+  sync();
+  document.body.dispatchEvent(new Event('cv:change'));
+  // The point of an import is the form it filled: on a phone the preview tab
+  // may be the one on screen, and leaving it there hides the whole result.
+  showView('edit');
+  toast(T.label('Importé', 'Imported'));
+}
+
+/* A PDF is a rendering, not data, and the reading of one is a guess from start
+   to finish: the layout decides what a line is, and the heuristics decide what
+   a line means. The file is decoded here, where it already is, and only the
+   text it yields is posted. The server never sees the file, which is what keeps
+   /api/import as cheap as the rest of the API.
+
+   What comes back fills the form directly. The draft is the editable document:
+   every field the reader guessed is a field the candidate can see and correct
+   in place, which is a better review than a summary that only counts them. The
+   session it replaces is a new one, so the work already in the editor stays
+   where it is and the import is undone by switching back to it. */
+async function importPDF(file) {
+  showProgress(T.label('Lecture du PDF…', 'Reading the PDF…'));
+
+  const pdfjs = await import('/static/vendor/pdf.min.mjs');
+  pdfjs.GlobalWorkerOptions.workerSrc = '/static/vendor/pdf.worker.min.mjs';
+  const { extractText, NoTextLayer } = await import('/static/pdf_import.mjs');
+
+  const bytes = await file.arrayBuffer();
+  let read;
+  try {
+    read = await extractText(bytes, pdfjs, (n, total) => {
+      showProgress(T.label(`Lecture du PDF… page ${n}/${total}`, `Reading the PDF… page ${n}/${total}`));
+    });
+  } catch (err) {
+    if (err instanceof NoTextLayer || err.name === 'NoTextLayer') {
+      throw new Error(T.label(
+        'Ce PDF est scanné : il n’a pas de couche texte. Un scan demande de l’OCR, ' +
+        'que cet outil ne fait pas. Exporte ton CV depuis un document texte, ou importe son JSON.',
+        'This PDF is a scan and has no text layer. A scan needs OCR, which this tool does not do. ' +
+        'Export the resume from a text document, or import its JSON.'));
+    }
+    throw new Error(T.label('PDF illisible : ', 'Unreadable PDF: ') + (err.message || err));
+  }
+
+  const res = await fetch('/api/import', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ text: read.text }),
+  });
+  const body = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(body.error || T.label('Import impossible', 'Import failed'));
+  }
+
+  hideProgress();
+  newSession(body.resume, (file.name || 'resume').replace(/\.pdf$/i, '') || T.unnamed());
+  persist();
+  // resetSection decides what the next render shows, so it comes before it.
+  resetSection();
+  rerender();
+  sync();
+  document.body.dispatchEvent(new Event('cv:change'));
+  // The fields are the review, so they are what must be on screen: a phone
+  // sitting on the preview tab would otherwise hide everything just imported.
+  showView('edit');
+
+  // A section the schema had nowhere to put is content the candidate wrote and
+  // the form does not show. Counting it in a toast is the only place left to
+  // say so now that there is no summary panel.
+  const unmapped = body.unmapped || [];
+  toast(unmapped.length
+    ? T.label(
+        `Importé — à vérifier. Non repris : ${unmapped.join(', ')}`,
+        `Imported — check it. Not carried over: ${unmapped.join(', ')}`)
+    : T.label('Importé — c’est un brouillon, vérifie chaque champ.',
+              'Imported — this is a draft, check every field.'),
+    unmapped.length ? 'error' : 'info');
+}
+
+/* The progress line reuses the toast: reading a PDF takes seconds, and a button
+   that does nothing visible for that long looks broken. */
+function showProgress(message) {
+  const node = document.getElementById('toast');
+  if (!node) return;
+  node.textContent = message;
+  node.dataset.kind = 'info';
+  node.hidden = false;
+  clearTimeout(Number(node.dataset.timer) || 0);
+}
+
+function hideProgress() {
+  const node = document.getElementById('toast');
+  if (node) node.hidden = true;
 }
 
 /* --------------------------------------------------------------- downloads */
@@ -623,6 +811,42 @@ function wireTabs() {
   }
 }
 
+// wireViewTabs switches the phone between the form and the output.
+//
+// The panels are shown by a class rather than by a style, so that the media
+// query at 1000px can put both back on screen without this code being told:
+// widening a window must not leave half the page hidden behind a tab bar that
+// is no longer displayed.
+// showView switches the phone to one of the two panels. It is a no-op on a wide
+// screen, where both are on display and the tab bar is hidden.
+let showView = () => {};
+
+function wireViewTabs() {
+  const tabs = [...document.querySelectorAll('.viewtab')];
+  if (tabs.length === 0) return;
+
+  function show(view) {
+    for (const tab of tabs) {
+      const active = tab.dataset.view === view;
+      tab.classList.toggle('is-active', active);
+      tab.setAttribute('aria-selected', String(active));
+    }
+    for (const panel of document.querySelectorAll('[data-view-panel]')) {
+      panel.classList.toggle('is-active', panel.dataset.viewPanel === view);
+    }
+    // The two panels scroll independently, and the tab bar sits at the top of
+    // the page: switching while halfway down the form would otherwise land the
+    // user in the middle of the preview with no idea where they are.
+    window.scrollTo(0, 0);
+  }
+
+  for (const tab of tabs) {
+    tab.addEventListener('click', () => show(tab.dataset.view));
+  }
+  showView = show;
+  show('edit');
+}
+
 /* -------------------------------------------------------------------- boot */
 
 // loadDemo asks the server for the resume a fresh editor starts from. A 404 is
@@ -642,6 +866,7 @@ async function loadDemo() {
 
 async function boot() {
   wireTabs();
+  wireViewTabs();
   wireSessions();
   wireFiles();
   wireDownloads();
