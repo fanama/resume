@@ -11,7 +11,8 @@ let schema = null;
 /** @type {{sessions: Array, current: string}} */
 let store = { sessions: [], current: '' };
 let saveTimer = 0;
-let syncTimer = 0;
+let refreshTimer = 0;
+let lastRefresh = 0;
 
 /* ------------------------------------------------------------------ storage */
 
@@ -684,7 +685,9 @@ function outputVisible() {
  *  the form alone is on screen: whatever it cancels is asked for again the
  *  moment the output comes back. */
 function refreshOutput() {
-  clearTimeout(syncTimer);
+  clearTimeout(refreshTimer);
+  refreshTimer = 0;
+  lastRefresh = Date.now();
   if (!outputVisible()) return;
   refreshPanel(activePanel());
 }
@@ -709,12 +712,22 @@ function sync() {
   scheduleRefresh();
 }
 
-// The debounce is what keeps typing to one request instead of one per key:
-// the refresh itself only happens once the hands leave the keyboard, and only
-// for what is on screen.
+// A preview that waits for the hands to leave the keyboard is not a preview:
+// the resume is redrawn while it is still being written. The window keeps
+// typing from becoming one request per key: the first change of a burst is
+// answered at once, the ones that follow wait for the window to reopen, and
+// the last of the burst is never dropped. The server draws the resume in about
+// a tenth of a millisecond, so what is left to save is the round trip itself.
+const REFRESH_MS = 90;
+
 function scheduleRefresh() {
-  clearTimeout(syncTimer);
-  syncTimer = setTimeout(refreshOutput, 250);
+  const wait = REFRESH_MS - (Date.now() - lastRefresh);
+  if (wait <= 0) {
+    refreshOutput();
+    return;
+  }
+  clearTimeout(refreshTimer);
+  refreshTimer = setTimeout(refreshOutput, wait);
 }
 
 function scheduleSave() {

@@ -376,20 +376,29 @@ await new Promise((r) => setTimeout(r, 600));
 const store4 = JSON.parse(localStorage.getItem('atscv.sessions.v1'));
 check(store4.sessions.length === 1 && store4.current === firstId, 'the session was not deleted: ' + JSON.stringify(store4.sessions.map((s) => s.id)));
 
-/* 7. an edit asks for one refresh, for the panel on screen, after the debounce;
-      and the download carries the draft */
+/* 7. an edit is drawn while it is written: a keystroke asks at once, a burst
+      asks once for the window, and the last keystroke is never dropped */
 const refreshes = [];
 for (const name of ['cv:preview', 'cv:report', 'cv:text']) {
   document.body.addEventListener(name, () => refreshes.push(name));
 }
-fieldOf('headline').value = 'Ingénieure分布式';
+await new Promise((r) => setTimeout(r, 150)); // the refresh window is open again
+fieldOf('headline').value = 'Ingénieure distribuée';
 fieldOf('headline').dispatchEvent({ type: 'input' });
-check(refreshes.length === 0, 'a keystroke asked for a preview without waiting for the debounce');
-await new Promise((r) => setTimeout(r, 350));
+check(refreshes.join(',') === 'cv:preview',
+  'a keystroke was not drawn as it was typed: [' + refreshes.join(', ') + ']');
+refreshes.length = 0;
+for (let i = 0; i < 5; i += 1) {
+  fieldOf('headline').value = 'Ingénieure distribuée ' + i;
+  fieldOf('headline').dispatchEvent({ type: 'input' });
+}
+check(refreshes.length === 0,
+  'five keystrokes asked for ' + refreshes.length + ' refreshes without waiting for the window');
+await new Promise((r) => setTimeout(r, 300));
 check(refreshes.length === 1,
-  'one edit asked for ' + refreshes.length + ' refreshes, want exactly 1: ' + refreshes.join(', '));
-check(refreshes[0] === 'cv:preview',
-  'the edit refreshed ' + refreshes.join(', ') + ' instead of the preview on screen');
+  'five keystrokes asked for ' + refreshes.length + ' refreshes, want the burst collapsed into 1');
+check(snapshot().headline === 'Ingénieure distribuée 4',
+  'the last keystroke of the burst never reached the model: ' + snapshot().headline);
 
 /* 7b. opening a tab asks for the panel it was hiding, and only then */
 const reportTab = document.querySelectorAll('.tab').find((b) => b.dataset.tab === 'report');
@@ -402,7 +411,6 @@ refreshes.length = 0;
 reportTab.click();
 check(refreshes.length === 0,
   'clicking the tab already open asked again: ' + refreshes.join(', '));
-check(snapshot().headline === 'Ingénieure分布式', 'the last edit is not in the model');
 
 check(document.getElementById('name-field').value === 'Jeanne Rousseau',
   'the name sent to the renderer is not the draft name: ' + document.getElementById('name-field').value);

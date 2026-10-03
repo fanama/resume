@@ -163,6 +163,13 @@ construit à partir du schéma publié par le serveur, un aperçu qui se met à 
 à la frappe, le rapport ATS, le texte brut que l'ATS extrait, et quatre
 téléchargements.
 
+L'aperçu est redessiné **pendant** la frappe, pas à l'arrêt : la première
+modification d'une rafale part immédiatement, les suivantes attendent une fenêtre
+de 90 ms, et la dernière n'est jamais perdue. Le serveur rend le CV en un dixième
+de milliseconde, donc la fenêtre ne protège que le navigateur d'une requête par
+touche — et elle ne vise que l'onglet ouvert, un panneau sous un onglet caché
+n'est plus rafraîchi qu'au moment où on l'ouvre.
+
 **Le serveur ne stocke rien.** Chaque session est un objet dans le
 `localStorage` du navigateur (`atscv.sessions.v1`) ; le serveur ne reçoit que
 le CV à rendre et ne le garde pas. Effacer les données du site efface les
@@ -409,13 +416,19 @@ silence : `model.Parse` refuse un champ inconnu au lieu de perdre une rubrique.
 
 Les dates acceptent `2023`, `2023-01`, `01/2023`, `janvier 2023` et `present` /
 `aujourd'hui`. Une date réduite à l'année reste une année : le générateur n'ajoute
-jamais un mois qui n'a pas été écrit.
+jamais un mois qui n'a pas été écrit. Dans l'éditeur, chaque période a un champ
+natif `month` ou `date`, donc un calendrier : il est pré-rempli même quand la
+valeur ne porte qu'une année (`2021` → janvier 2021) ou vaut `present` (le mois
+courant), mais le modèle garde `2021` et `present` tant que l'utilisateur n'a pas
+choisi — la normalisation est celle de `layout.ParsePeriod`, la même que celle du
+PDF.
 
 ## Tests
 
 ```sh
 go test ./...
 go vet ./...
+gofmt -l .
 ```
 
 La suite couvre le schéma JSON, le formatage des dates, l'ordre des rubriques, la
@@ -427,8 +440,10 @@ l'API web : routes, codes de statut, en-têtes, échappement, et un garde-fou qu
 Le test de l'éditeur (`TestEditorDrivesTheForm`) exécute `app.js` dans un DOM
 miniature, sans navigateur : il vérifie qu'une frappe écrit la bonne clé du
 modèle, qu'un bloc unique n'offre ni suppression ni duplication, qu'une session
-survit à un rechargement, et que le téléchargement porte le bon brouillon. Il
-est ignoré si `node` est absent.
+survit à un rechargement, qu'une période offre un calendrier qui ne réécrit pas
+une date réduite à l'année, qu'une frappe déclenche l'aperçu immédiatement et
+qu'une rafale n'en déclenche qu'une, et que le téléchargement porte le bon
+brouillon. Il est ignoré si `node` est absent.
 
 Le `.docx` produit est reproductible bit à bit, ce qui permet de le versionner.
 
