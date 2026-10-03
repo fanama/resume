@@ -122,7 +122,6 @@ func TestHomeServesTheLandingPage(t *testing.T) {
 		`id="etapes"`,
 		`id="linter"`,
 		`id="pagination"`,
-		`id="installation"`,
 		`<h1>`,
 		`<h2>`,
 	} {

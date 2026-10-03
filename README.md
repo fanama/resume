@@ -153,7 +153,7 @@ le navigateur la copie dans son `localStorage`, où elle devient un brouillon
 ordinaire, détenu par le visiteur.
 
 `atscv serve` sert deux pages : `/` est la page d'accueil du projet — ce que
-fait l'outil, ses trois étapes, le linter, la pagination, l'installation — et
+fait l'outil, ses trois étapes, le linter, la pagination — et
 `/editor` est l'éditeur. Les deux viennent du même binaire et de la même
 feuille de style, donc la vitrine et l'outil ne peuvent pas diverger. La page
 d'accueil ne lit aucun CV et n'appelle aucun renderer.

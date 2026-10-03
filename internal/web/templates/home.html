@@ -20,7 +20,6 @@
       <a href="#etapes">Comment</a>
       <a href="#linter">Linter</a>
       <a href="#pagination">Pagination</a>
-      <a href="#installation">Installation</a>
     </nav>
     <a class="button primary" href="/editor">Ouvrir l’éditeur</a>
   </div>
@@ -37,7 +36,6 @@
     du DOCX, dans le même ordre.</p>
     <p class="actions">
       <a class="button primary" href="/editor">Ouvrir l’éditeur</a>
-      <a class="button" href="#installation">Installer</a>
     </p>
     <ul class="facts">
       <li><b>1</b> source JSON</li>
@@ -179,25 +177,6 @@ ok: 232 words, 4 entries, 10 skills, 1 page</code></pre>
       </tbody>
     </table>
   </section>
-
-  <section id="installation">
-    <h2>Installation</h2>
-    <pre class="code"><code>$ cd atscv
-$ go build -o atscv .
-$ ./atscv check -i data/resume.demo.json
-ok: 232 words, 4 entries, 10 skills, 1 page</code></pre>
-    <p>Ensuite&nbsp;:</p>
-    <pre class="code"><code># Les trois formats principaux, dans un répertoire
-$ ./atscv build -i data/resume.demo.json -o dist/
-
-# L’éditeur web, sur le loopback
-$ ./atscv serve</code></pre>
-    <p class="note">Les sorties montrées sur cette page sont celles de
-    <code>data/resume.demo.json</code>, un CV fictif livré avec le dépôt&nbsp;: elles sont
-    produites par la commande, pas écrites à la main, et un test vérifie qu’elles
-    correspondent toujours à la sortie réelle.</p>
-  </section>
-
 </main>
 
 <footer class="shell foot">
