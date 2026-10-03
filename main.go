@@ -21,7 +21,6 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
-	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -234,10 +233,15 @@ func runBuild(args []string, stdout, stderr io.Writer) error {
 	}
 
 	written := make([]string, 0, len(formats))
+	var pdfReport pdf.Report
 	for _, format := range formats {
 		target := c.target(dir, base, format, explicit)
-		if err := writeFormat(format, target, l, docxOpts, pdfOpts, adocOpts, header); err != nil {
+		rep, err := writeFormat(format, target, l, docxOpts, pdfOpts, adocOpts, header)
+		if err != nil {
 			return err
+		}
+		if format == "pdf" {
+			pdfReport = rep
 		}
 		written = append(written, target)
 	}
@@ -247,15 +251,14 @@ func runBuild(args []string, stdout, stderr io.Writer) error {
 	for _, path := range written {
 		fmt.Fprintln(stdout, "wrote", path)
 	}
-	// The page count is measured on the PDF that was just produced, and only
-	// said out loud when the document spills: a resume that needs a second page
-	// is a content decision, and a silent extra page is how it goes unnoticed.
-	if slices.Contains(formats, "pdf") {
-		if rep, err := pdf.Measure(l, pdfOpts); err == nil && rep.Pages > 1 {
-			fmt.Fprintf(stderr, "note: the PDF runs to %d pages, the last one %.0f%% full; "+
-				"the breaks are clean, but fitting on one page means cutting about %.0f mm of content\n",
-				rep.Pages, rep.LastPageFill, rep.LastPageFill/100*(297-2*14))
-		}
+	// The page count comes from the render that just produced the file, and is
+	// only said out loud when the document spills: a resume that needs a second
+	// page is a content decision, and a silent extra page is how it goes
+	// unnoticed. Measuring afterwards would render everything a second time.
+	if pdfReport.Pages > 1 {
+		fmt.Fprintf(stderr, "note: the PDF runs to %d pages, the last one %.0f%% full; "+
+			"the breaks are clean, but fitting on one page means cutting about %.0f mm of content\n",
+			pdfReport.Pages, pdfReport.LastPageFill, pdfReport.LastPageFill/100*(297-2*14))
 	}
 	return nil
 }
@@ -274,16 +277,24 @@ func (c *commonFlags) target(dir, base, format string, explicit bool) string {
 	return filepath.Join(dir, base+ext)
 }
 
+// writeFormat renders one format to its target. It hands back the page report
+// of the PDF, which the render itself measured: the caller needs it for the
+// note, and asking for it afterwards would render the document twice.
 func writeFormat(format, target string, l *layout.Layout,
-	dOpts docx.Options, pOpts pdf.Options, aOpts adoc.Options, header string) error {
+	dOpts docx.Options, pOpts pdf.Options, aOpts adoc.Options, header string) (pdf.Report, error) {
 	var err error
+	var rep pdf.Report
 	switch format {
 	case "docx":
 		err = writeFile(target, func(w io.Writer) error {
 			return docx.Render(w, docx.FromLayout(l), dOpts)
 		})
 	case "pdf":
-		err = writeFile(target, func(w io.Writer) error { return pdf.Render(w, l, pOpts) })
+		err = writeFile(target, func(w io.Writer) error {
+			var rerr error
+			rep, rerr = pdf.RenderReport(w, l, pOpts)
+			return rerr
+		})
 	case "adoc":
 		err = writeFile(target, func(w io.Writer) error {
 			_, werr := io.WriteString(w, adoc.Render(l, aOpts))
@@ -298,9 +309,9 @@ func writeFormat(format, target string, l *layout.Layout,
 		err = fmt.Errorf("unknown format %q", format)
 	}
 	if err != nil {
-		return fmt.Errorf("%s: %w", format, err)
+		return pdf.Report{}, fmt.Errorf("%s: %w", format, err)
 	}
-	return nil
+	return rep, nil
 }
 
 func writeFile(path string, fn func(io.Writer) error) error {

@@ -197,6 +197,8 @@ function buildField(field, target, index, onChange, section) {
     return buildListField(field, target, onChange);
   } else if (field.kind === 'entries') {
     return buildEntriesField(field, target, onChange);
+  } else if (field.kind === 'date') {
+    return buildDateField(field, target, onChange);
   } else {
     input = el('input', { type: 'text', class: field.mono ? 'mono' : null });
     input.value = value || '';
@@ -207,6 +209,177 @@ function buildField(field, target, index, onChange, section) {
     el('label', { text: fieldLabel(field) }),
     input,
   ]);
+}
+
+/* ------------------------------------------------------------------ dates */
+
+// The dates are read by a parser, not by a human: "2023", "01/2023",
+// "2023-03", "mars 2023" and "present" are all values the model takes, and
+// the day was never one of them. So a date is a single field — the native
+// calendar the browser already draws — which writes the month back as
+// "2023-03", the shape the parser, the preview and the exports keep.
+//
+// A date the model holds is always shown: pickerValue reads the date the way
+// layout.ParsePeriod does, so a bare year points at January, a running period
+// at today and a month name at its own month — never an empty calendar for a
+// date the document has. What the calendar points at is the calendar's own:
+// it is written back only when the candidate picks, so a 2023 start stays
+// "2023" in the model and still prints as "2023" in the document. Only a
+// value the parser itself would refuse leaves the field empty.
+//
+// A browser with no month widget is given the day picker, and one with no
+// calendar at all the plain text field.
+
+// DATE_PICKER is the input type that can hold a month, then one that can hold
+// a day, or "" for no calendar at all. The property tells, not the attribute:
+// a type the browser does not implement reads back as "text".
+const DATE_PICKER = (() => {
+  const probe = document.createElement('input');
+  probe.type = 'month';
+  if (probe.type === 'month') return 'month';
+  probe.type = 'date';
+  if (probe.type === 'date') return 'date';
+  return '';
+})();
+
+// PRESENT_WORDS and MONTH_NAMES mirror layout.go: the widget must point at
+// every date the parser reads, or the editor shows an empty calendar for a
+// date the document holds.
+const PRESENT_WORDS = new Set([
+  'present', 'now', 'current', 'ongoing', "aujourd'hui", 'aujourd hui',
+  'présent', 'en cours', 'actuel', 'actuelle',
+]);
+const MONTH_NAMES = {
+  jan: 1, january: 1, janv: 1, janvier: 1,
+  feb: 2, february: 2, fevr: 2, fev: 2, 'février': 2,
+  mar: 3, march: 3, mars: 3,
+  apr: 4, april: 4, avr: 4, avril: 4,
+  may: 5, mai: 5,
+  jun: 6, june: 6, juin: 6,
+  jul: 7, july: 7, juil: 7, juillet: 7,
+  aug: 8, august: 8, aout: 8, 'août': 8,
+  sep: 9, sept: 9, september: 9, septembre: 9,
+  oct: 10, october: 10, octobre: 10,
+  nov: 11, november: 11, novembre: 11,
+  dec: 12, december: 12, decembre: 12, 'décembre': 12,
+};
+
+/** monthNumber is layout.monthNumber: a token that names a month, 0 if it
+ *  does not. */
+function monthNumber(token) {
+  const t = String(token || '').toLowerCase().replace(/\.$/, '');
+  if (!t) return 0;
+  if (/^\d+$/.test(t)) {
+    const n = Number(t);
+    return n >= 1 && n <= 12 ? n : 0;
+  }
+  return MONTH_NAMES[t] || 0;
+}
+
+/** numericDate is layout.parseNumericDate: "2023", "2023-03", "03/2023",
+ *  "03 2023" — the month being 0 when the value names only a year. Null is a
+ *  value no numeric date can be read from. */
+function numericDate(value) {
+  const nums = [];
+  for (const raw of value.replace(/[-. ]/g, '/').split('/')) {
+    const part = raw.trim();
+    if (!part) continue;
+    if (!/^\d+$/.test(part)) return null;
+    nums.push(Number(part));
+  }
+  if (nums.length === 1) return nums[0] >= 1900 ? { year: nums[0], month: 0 } : null;
+  if (nums.length === 2) {
+    const [a, b] = nums;
+    if (a >= 1000 && b >= 1 && b <= 12) return { year: a, month: b };
+    if (b >= 1000 && a >= 1 && a <= 12) return { year: b, month: a };
+  }
+  return null;
+}
+
+/** monthOf is layout.parseDate: the year and the month a value names, the
+ *  month being 0 for a bare year, or null when the parser would refuse it. */
+function monthOf(text) {
+  const value = String(text || '').trim();
+  if (!value) return null;
+  const numeric = numericDate(value);
+  if (numeric) return numeric;
+  // "Jan 2023", "mars 2022", "01 Jan 2023": any token order, at least two.
+  const fields = value.split(/\s+/);
+  if (fields.length < 2) return null;
+  let year = 0;
+  let month = 0;
+  for (const f of fields) {
+    const m = monthNumber(f);
+    if (m) month = m;
+    else if (/^\d+$/.test(f) && Number(f) > 1900) year = Number(f);
+  }
+  if (!year) return null;
+  return { year, month };
+}
+
+/** pickerValue turns what the model holds into the month the widget points
+ *  at: the month itself, January for a bare year, today for a running period
+ *  — so a date the document holds is never shown as an empty calendar. The
+ *  day of a day picker is the first of the month, except for a running period
+ *  where it is today. */
+function pickerValue(text, type) {
+  const value = String(text || '').trim();
+  if (!value) return '';
+  let year;
+  let month;
+  let day = 1;
+  if (PRESENT_WORDS.has(value.toLowerCase())) {
+    const now = new Date();
+    year = now.getFullYear();
+    month = now.getMonth() + 1;
+    day = now.getDate();
+  } else {
+    const parsed = monthOf(value);
+    if (!parsed) return '';
+    year = parsed.year;
+    month = parsed.month || 1;
+  }
+  const iso = year + '-' + String(month).padStart(2, '0');
+  return type === 'date' ? iso + '-' + String(day).padStart(2, '0') : iso;
+}
+
+// pickedMonth is what the calendar wrote: the month, and only the month.
+function pickedMonth(value) {
+  return String(value || '').slice(0, 7);
+}
+
+/** A period date: one field, the native calendar, writing the month the model
+ *  reads. A browser with no calendar gets the plain text field, which is the
+ *  only widget that can still be told "present". */
+function buildDateField(field, target, onChange) {
+  const commit = (value) => { target[field.key] = value; onChange(); };
+  const label = fieldLabel(field);
+  const current = target[field.key] || '';
+
+  if (!DATE_PICKER) {
+    const text = el('input', { type: 'text', class: field.mono ? 'mono' : null, 'aria-label': label });
+    text.value = current;
+    text.addEventListener('input', () => commit(text.value));
+    return el('div', { class: 'field' }, [el('label', { text: label }), text]);
+  }
+
+  const picker = el('input', {
+    type: DATE_PICKER,
+    class: (field.mono ? 'mono ' : '') + 'date-picker',
+    'aria-label': label,
+  });
+  picker.value = pickerValue(current, DATE_PICKER);
+
+  // While the segments are being typed the model only follows a month the
+  // widget can already name: an incomplete date reads back as "", and wiping
+  // the model with it on every keystroke would be wrong. The clearing itself
+  // comes with "change", where "" means the candidate emptied the field.
+  picker.addEventListener('input', () => {
+    if (picker.value) commit(pickedMonth(picker.value));
+  });
+  picker.addEventListener('change', () => commit(pickedMonth(picker.value)));
+
+  return el('div', { class: 'field' }, [el('label', { text: label }), picker]);
 }
 
 /** A repeatable list of short strings: one textarea per item, so a long
@@ -304,7 +477,13 @@ function buildSection(section, data, onChange) {
     data[section.key] = data[section.key] || {};
     body.appendChild(buildEntry(section, data[section.key], 0, onChange, null, null));
   } else {
+    // A list the model never filled arrives as null, not as []: the server
+    // marshals a nil slice as null and Normalize drops the empty ones, so an
+    // imported resume has one per unused section. The array has to be attached
+    // to the resume here, otherwise the push below goes into a copy the next
+    // render never reads and the entry added to an empty section vanishes.
     const list = Array.isArray(data[section.key]) ? data[section.key] : [];
+    data[section.key] = list;
     section.array = list;
     if (!list.length) {
       body.appendChild(el('p', { class: 'empty', text: T.empty() }));
@@ -473,6 +652,50 @@ function buildSingleton(section, data, onChange) {
   return card;
 }
 
+/* --------------------------------------------------------------- refresh */
+
+// One event per output panel, and only the panel that is on screen is asked
+// for: every keystroke used to post the whole resume three times, to a
+// diagnostic and a plain text panel sitting hidden under the active tab.
+// page.html gives each panel its own trigger; the panels that are not asked
+// for here are refreshed when their tab is selected.
+const PANEL_EVENTS = { preview: 'cv:preview', report: 'cv:report', text: 'cv:text' };
+
+/** The output panel the tabs have selected, the one any refresh targets. */
+function activePanel() {
+  const tab = document.querySelector('.tab.is-active');
+  return (tab && tab.dataset.tab) || 'preview';
+}
+
+/** Whether the output column is on screen. Above 1000px it never hides; on a
+ *  phone it is only there when the "Aperçu" view is selected. Without
+ *  matchMedia, as in the test DOM, the wide layout is assumed: a refresh that
+ *  happens when it should not is a wasted request, one that never happens is
+ *  a preview that stays empty. */
+function outputVisible() {
+  if (typeof window.matchMedia === 'function' && !window.matchMedia('(min-width: 1000px)').matches) {
+    const view = document.querySelector('.viewtab.is-active');
+    return !view || view.dataset.view === 'output';
+  }
+  return true;
+}
+
+/** refreshOutput asks for the one panel a reader can see, and for none when
+ *  the form alone is on screen: whatever it cancels is asked for again the
+ *  moment the output comes back. */
+function refreshOutput() {
+  clearTimeout(syncTimer);
+  if (!outputVisible()) return;
+  refreshPanel(activePanel());
+}
+
+/** refreshPanel is the refresh a deliberate action earns: opening a tab that
+ *  may have been left behind by every edit since it was last shown. */
+function refreshPanel(key) {
+  const event = PANEL_EVENTS[key];
+  if (event) document.body.dispatchEvent(new CustomEvent(event));
+}
+
 /* ------------------------------------------------------------------- sync */
 
 /** Pushes the model into the hidden fields and asks HTMX to refresh. */
@@ -486,11 +709,12 @@ function sync() {
   scheduleRefresh();
 }
 
+// The debounce is what keeps typing to one request instead of one per key:
+// the refresh itself only happens once the hands leave the keyboard, and only
+// for what is on screen.
 function scheduleRefresh() {
   clearTimeout(syncTimer);
-  syncTimer = setTimeout(() => {
-    document.body.dispatchEvent(new CustomEvent('cv:change'));
-  }, 250);
+  syncTimer = setTimeout(refreshOutput, 250);
 }
 
 function scheduleSave() {
@@ -540,7 +764,7 @@ function selectSession(id) {
   saveNow();
   rerender();
   sync();
-  document.body.dispatchEvent(new CustomEvent('cv:change'));
+  refreshOutput();
 }
 
 function wireSessions() {
@@ -550,7 +774,7 @@ function wireSessions() {
     newSession(null, T.label('Nouveau CV', 'New resume'));
     rerender();
     sync();
-    document.body.dispatchEvent(new CustomEvent('cv:change'));
+    refreshOutput();
   });
 
   document.getElementById('session-rename').addEventListener('click', () => {
@@ -569,7 +793,7 @@ function wireSessions() {
     newSession(JSON.parse(JSON.stringify(session.data)), session.name + T.label(' (copie)', ' (copy)'));
     rerender();
     sync();
-    document.body.dispatchEvent(new CustomEvent('cv:change'));
+    refreshOutput();
   });
 
   document.getElementById('session-delete').addEventListener('click', () => {
@@ -582,7 +806,7 @@ function wireSessions() {
     persist();
     rerender();
     sync();
-    document.body.dispatchEvent(new Event('cv:change'));
+    refreshOutput();
   });
 }
 
@@ -660,7 +884,7 @@ async function importJSON(file) {
   resetSection();
   rerender();
   sync();
-  document.body.dispatchEvent(new Event('cv:change'));
+  refreshOutput();
   // The point of an import is the form it filled: on a phone the preview tab
   // may be the one on screen, and leaving it there hides the whole result.
   showView('edit');
@@ -719,7 +943,7 @@ async function importPDF(file) {
   resetSection();
   rerender();
   sync();
-  document.body.dispatchEvent(new Event('cv:change'));
+  refreshOutput();
   // The fields are the review, so they are what must be on screen: a phone
   // sitting on the preview tab would otherwise hide everything just imported.
   showView('edit');
@@ -799,6 +1023,7 @@ function wireDownloads() {
 function wireTabs() {
   for (const tab of document.querySelectorAll('.tab')) {
     tab.addEventListener('click', () => {
+      const was = document.querySelector('.tab.is-active');
       for (const other of document.querySelectorAll('.tab')) {
         const active = other === tab;
         other.classList.toggle('is-active', active);
@@ -807,6 +1032,9 @@ function wireTabs() {
       for (const panel of document.querySelectorAll('.tabpanel')) {
         panel.classList.toggle('is-active', panel.id === 'panel-' + tab.dataset.tab);
       }
+      // The panel that was hidden was not asked for while it was: opening it
+      // is the moment to bring it up to date with every edit it missed.
+      if (was !== tab) refreshPanel(tab.dataset.tab);
     });
   }
 }
@@ -838,6 +1066,9 @@ function wireViewTabs() {
     // the page: switching while halfway down the form would otherwise land the
     // user in the middle of the preview with no idea where they are.
     window.scrollTo(0, 0);
+    // The output was not refreshed while the form alone was on screen, so
+    // opening it is when the preview of everything typed has to be asked for.
+    if (view === 'output') refreshOutput();
   }
 
   for (const tab of tabs) {
@@ -873,7 +1104,7 @@ async function boot() {
 
   document.getElementById('ascii').addEventListener('change', () => {
     sync();
-    document.body.dispatchEvent(new Event('cv:change'));
+    refreshOutput();
   });
 
   let res;
@@ -906,10 +1137,12 @@ async function boot() {
   persist();
 
   rerender();
-  // The form is drawn on the next frame, so sync once it exists.
+  // The form is drawn on the next frame, so sync once it exists. The refresh
+  // goes with it, for the same reason: the preview is filled by this call and
+  // not by the "load" trigger, which would post a form still empty.
   requestAnimationFrame(() => {
     sync();
-    document.body.dispatchEvent(new Event('cv:change'));
+    refreshOutput();
   });
 }
 

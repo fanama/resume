@@ -8,9 +8,7 @@ package web
 
 import (
 	"context"
-	"crypto/sha256"
 	"embed"
-	"encoding/hex"
 	"fmt"
 	"html/template"
 	"io"
@@ -109,9 +107,10 @@ func New(opts Options) (*Server, error) {
 	return s, nil
 }
 
-// Handler returns the HTTP handler, wrapped with the security headers.
+// Handler returns the HTTP handler, wrapped with the security headers and the
+// compression. Everything the editor asks for goes through the two of them.
 func (s *Server) Handler() http.Handler {
-	return s.securityHeaders(s.mux)
+	return s.securityHeaders(gzipResponses(s.mux))
 }
 
 // securityHeaders sets a strict policy. The editor loads nothing but its own
@@ -143,8 +142,7 @@ func (s *Server) routes() {
 	if err != nil {
 		panic(err)
 	}
-	files := http.FileServer(http.FS(static))
-	s.mux.Handle("GET /static/", http.StripPrefix("/static/", revalidate(static, files)))
+	s.mux.Handle("GET /static/", http.StripPrefix("/static/", serveAssets(static)))
 	// The landing page is the front door, the editor sits behind it. Both come
 	// from the same binary and the same stylesheet, so the site and the tool
 	// cannot drift apart.
@@ -166,48 +164,6 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
 		io.WriteString(w, `{"status":"ok"}`)
-	})
-}
-
-// revalidate serves an embedded file with a validator instead of a blind cache
-// lifetime. The assets are compiled into the binary, so their content only
-// changes when the binary does, and the obvious move is a long max-age. That is
-// a trap: a browser keeps the old app.js for that whole window, cannot tell it
-// is out of date, and the editor silently runs the previous version of the tool.
-// A new binary, a new editor, an hour of confusion.
-//
-// So: let the browser store the file, but make it ask. The tag is a hash of the
-// bytes, computed once at startup, which is also why it is worth computing it
-// here rather than trusting a timestamp: an embed.FS file has no modification
-// time to compare.
-func revalidate(fsys fs.FS, next http.Handler) http.Handler {
-	tags := make(map[string]string)
-	_ = fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return nil
-		}
-		raw, err := fs.ReadFile(fsys, p)
-		if err != nil {
-			return nil
-		}
-		sum := sha256.Sum256(raw)
-		tags[p] = `"` + hex.EncodeToString(sum[:8]) + `"`
-		return nil
-	})
-
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		tag, ok := tags[strings.TrimPrefix(r.URL.Path, "/")]
-		if ok {
-			w.Header().Set("ETag", tag)
-			// no-cache, not no-store: the file is kept, and revalidated on the
-			// next load. An unchanged answer is a 304 with no body.
-			w.Header().Set("Cache-Control", "no-cache")
-			if matchesETag(r.Header.Get("If-None-Match"), tag) {
-				w.WriteHeader(http.StatusNotModified)
-				return
-			}
-		}
-		next.ServeHTTP(w, r)
 	})
 }
 

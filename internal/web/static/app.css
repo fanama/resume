@@ -354,6 +354,11 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 }
 .field input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
+/* A date is a single field: the native calendar, which has an intrinsic width
+   of its own. The grid must be allowed to cap it, or it pushes the card past
+   the column on a phone. */
+.field input.date-picker { min-width: 0; }
+
 /* Two fields that sit side by side on a desk are stacked on a phone: at 360px
    each half is 150px, which is narrower than the label of a date. */
 .grid2 { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }

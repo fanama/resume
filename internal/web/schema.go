@@ -17,6 +17,14 @@ const (
 	FieldList FieldKind = "list"
 	// FieldEntries is a repeatable list of objects: contact links.
 	FieldEntries FieldKind = "entries"
+	// FieldDate is a period date: the browser draws its native calendar in a
+	// single field, and whatever it picks is written back as the month the
+	// parser accepts — "2023-03" — because the model never stored a day. Every
+	// value the parser reads is shown: a bare year points the calendar at
+	// January, a running period ("present") at today, a month name at its own
+	// month — and what the calendar points at reaches the model only when the
+	// candidate picks.
+	FieldDate FieldKind = "date"
 )
 
 // Field describes one editable field of a section entry.
@@ -107,8 +115,8 @@ func Sections() []Section {
 				{Key: "title", Kind: FieldText, LabelFR: "Poste", LabelEN: "Title"},
 				{Key: "company", Kind: FieldText, LabelFR: "Entreprise", LabelEN: "Company"},
 				{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
-				{Key: "start", Kind: FieldText, LabelFR: "Début", LabelEN: "Start", Placeholder: "2023", Mono: true},
-				{Key: "end", Kind: FieldText, LabelFR: "Fin", LabelEN: "End", Placeholder: "present", Mono: true},
+				{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Placeholder: "2023", Mono: true},
+				{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Placeholder: "present", Mono: true},
 				{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
 				{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
 				{Key: "team", Kind: FieldText, LabelFR: "Équipe", LabelEN: "Team"},
@@ -122,8 +130,8 @@ func Sections() []Section {
 				{Key: "degree", Kind: FieldText, LabelFR: "Diplôme", LabelEN: "Degree"},
 				{Key: "school", Kind: FieldText, LabelFR: "École", LabelEN: "School"},
 				{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
-				{Key: "start", Kind: FieldText, LabelFR: "Début", LabelEN: "Start", Mono: true},
-				{Key: "end", Kind: FieldText, LabelFR: "Fin", LabelEN: "End", Mono: true},
+				{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
+				{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
 				{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
 				{Key: "coursework", Kind: FieldList, LabelFR: "Matières", LabelEN: "Coursework"},
 			},
@@ -142,7 +150,7 @@ func Sections() []Section {
 			Fields: []Field{
 				{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
 				{Key: "issuer", Kind: FieldText, LabelFR: "Organisme", LabelEN: "Issuer"},
-				{Key: "date", Kind: FieldText, LabelFR: "Date", LabelEN: "Date", Mono: true},
+				{Key: "date", Kind: FieldDate, LabelFR: "Date", LabelEN: "Date", Mono: true},
 				{Key: "id", Kind: FieldText, LabelFR: "Identifiant", LabelEN: "ID", Mono: true},
 			},
 		},
@@ -152,8 +160,8 @@ func Sections() []Section {
 			Fields: []Field{
 				{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
 				{Key: "url", Kind: FieldText, LabelFR: "URL", LabelEN: "URL", Mono: true},
-				{Key: "start", Kind: FieldText, LabelFR: "Début", LabelEN: "Start", Mono: true},
-				{Key: "end", Kind: FieldText, LabelFR: "Fin", LabelEN: "End", Mono: true},
+				{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
+				{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
 				{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
 				{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
 				{Key: "technologies", Kind: FieldList, LabelFR: "Technologies", LabelEN: "Technologies"},
@@ -166,8 +174,8 @@ func Sections() []Section {
 				{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
 				{Key: "organization", Kind: FieldText, LabelFR: "Organisation", LabelEN: "Organization"},
 				{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
-				{Key: "start", Kind: FieldText, LabelFR: "Début", LabelEN: "Start", Mono: true},
-				{Key: "end", Kind: FieldText, LabelFR: "Fin", LabelEN: "End", Mono: true},
+				{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
+				{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
 				{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
 				{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
 			},

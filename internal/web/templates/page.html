@@ -65,9 +65,19 @@
     </nav>
 
     <div class="tabpanel is-active" id="panel-preview" role="tabpanel">
+      <!--
+        One event per panel, and only the visible one is asked for: a keystroke
+        used to post the whole resume three times, to a diagnostic and a plain
+        text panel that were hidden under the active tab. hx-sync keeps a slow
+        answer from overwriting a newer one. There is no "load" trigger: the
+        first refresh comes from app.js, once the form holds a resume to show,
+        rather than from a form still empty. The panels that are not asked for
+        here are refreshed when their tab is selected.
+      -->
       <div id="preview"
            hx-post="/api/preview"
-           hx-trigger="cv:change from:body, load"
+           hx-trigger="cv:preview from:body"
+           hx-sync="this:replace"
            hx-swap="innerHTML"
            hx-include="#cv">
         <p class="empty">L’aperçu apparaît ici.</p>
@@ -77,7 +87,8 @@
     <div class="tabpanel" id="panel-report" role="tabpanel">
       <div id="report"
            hx-post="/api/lint"
-           hx-trigger="cv:change from:body, load"
+           hx-trigger="cv:report from:body"
+           hx-sync="this:replace"
            hx-swap="innerHTML"
            hx-include="#cv">
         <p class="empty">Le diagnostic apparaît ici.</p>
@@ -87,7 +98,8 @@
     <div class="tabpanel" id="panel-text" role="tabpanel">
       <div id="plaintext"
            hx-post="/api/text"
-           hx-trigger="cv:change from:body, load"
+           hx-trigger="cv:text from:body"
+           hx-sync="this:replace"
            hx-swap="innerHTML"
            hx-include="#cv">
         <p class="empty">L’ordre de lecture qu’un parser extrait apparaît ici.</p>

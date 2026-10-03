@@ -18,6 +18,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/fanama/resume/atscv/internal/layout"
 	fpdf "github.com/go-pdf/fpdf"
@@ -190,7 +191,7 @@ func newRenderer(pdf *fpdf.Fpdf, opts Options) (*renderer, error) {
 }
 
 func addTTF(pdf *fpdf.Fpdf, family, style, path string) error {
-	data, err := os.ReadFile(path)
+	data, err := readFont(path)
 	if err != nil {
 		return fmt.Errorf("pdf: read font %s: %w", path, err)
 	}
@@ -198,9 +199,66 @@ func addTTF(pdf *fpdf.Fpdf, family, style, path string) error {
 	return nil
 }
 
+// The font files do not change between two renders of the same process: the
+// resolution above is a hundred stat calls and the read is more than a
+// megabyte of TrueType data that fpdf then parses again. Both answers are
+// memoised for the life of the process, so only the first document of a
+// session pays for them. A font file edited under a running server is a
+// deployment, not a request.
+var (
+	fontPathMu sync.Mutex
+	fontPaths  = map[fontKey][2]string{}
+	fontDataMu sync.Mutex
+	fontData   = map[string][]byte{}
+)
+
+// fontKey carries every option that decides which files are used.
+type fontKey struct {
+	family string
+	dir    string
+	file   string
+	bold   string
+}
+
+// readFont returns the contents of a TrueType file, read at most once. The
+// bytes handed back are a copy: the renderer must not be able to write into
+// the cache another renderer is still reading from.
+func readFont(path string) ([]byte, error) {
+	fontDataMu.Lock()
+	cached, ok := fontData[path]
+	fontDataMu.Unlock()
+	if ok {
+		return append([]byte(nil), cached...), nil
+	}
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return nil, err
+	}
+	fontDataMu.Lock()
+	fontData[path] = data
+	fontDataMu.Unlock()
+	return data, nil
+}
+
 // resolveFontFiles looks for a regular and a bold TrueType file. An explicit
-// path always wins.
+// path always wins. The lookup stats every spelling of the family in every
+// font directory, so its answer is cached under the options that produced it.
 func resolveFontFiles(opts Options) (regular, bold string) {
+	key := fontKey{family: opts.FontFamily, dir: opts.FontDir, file: opts.FontFile, bold: opts.BoldFontFile}
+	fontPathMu.Lock()
+	cached, ok := fontPaths[key]
+	fontPathMu.Unlock()
+	if ok {
+		return cached[0], cached[1]
+	}
+	regular, bold = resolveFontFilesUncached(opts)
+	fontPathMu.Lock()
+	fontPaths[key] = [2]string{regular, bold}
+	fontPathMu.Unlock()
+	return regular, bold
+}
+
+func resolveFontFilesUncached(opts Options) (regular, bold string) {
 	if opts.FontFile != "" {
 		regular = opts.FontFile
 	}
@@ -737,9 +795,27 @@ func Measure(l *layout.Layout, opts Options) (Report, error) {
 	if err := render(io.Discard, l, opts, &trace); err != nil {
 		return Report{}, err
 	}
+	return reportFrom(trace), nil
+}
+
+// RenderReport writes the layout as a PDF and answers what Measure would have
+// found, in one pass. Measuring after rendering would run the whole document a
+// second time, fonts included, to discover a number the first pass already
+// knew: the trace is what the pagination produced anyway.
+func RenderReport(w io.Writer, l *layout.Layout, opts Options) (Report, error) {
+	var trace []drawn
+	if err := render(w, l, opts, &trace); err != nil {
+		return Report{}, err
+	}
+	return reportFrom(trace), nil
+}
+
+// reportFrom reads a report off the trace of a completed render. An empty
+// trace means nothing was drawn, which is one empty page rather than none.
+func reportFrom(trace []drawn) Report {
 	rep := Report{Pages: 1}
 	if len(trace) == 0 {
-		return rep, nil
+		return rep
 	}
 	rep.Pages = trace[len(trace)-1].page
 	rep.Sections = 0
@@ -765,7 +841,7 @@ func Measure(l *layout.Layout, opts Options) (Report, error) {
 	if usable := height - 2*pageMargin; usable > 0 && used > 0 {
 		rep.LastPageFill = used / usable * 100
 	}
-	return rep, nil
+	return rep
 }
 
 // Bytes renders the layout into memory.

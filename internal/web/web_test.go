@@ -293,6 +293,41 @@ func fieldsOf(v any) []modelField {
 	return out
 }
 
+// TestEveryPeriodDateOffersACalendar pins the calendar to the dates: every
+// period of the model is published as a date so the browser draws its native
+// calendar in that one field, and no other field is, or a month picker would
+// write "2023-07" into a string that was never a date.
+func TestEveryPeriodDateOffersACalendar(t *testing.T) {
+	periods := 0
+	for _, s := range Sections() {
+		for _, f := range s.Fields {
+			period := f.Key == "start" || f.Key == "end" || f.Key == "date"
+			if period {
+				periods++
+			}
+			if period && f.Kind != FieldDate {
+				t.Errorf("%s.%s is a %q: a period gets no calendar", s.Key, f.Key, f.Kind)
+			}
+			if !period && f.Kind == FieldDate {
+				t.Errorf("%s.%s asks for a calendar but is not a date", s.Key, f.Key)
+			}
+		}
+	}
+	if periods == 0 {
+		t.Error("the schema holds no period: the calendar would never be drawn")
+	}
+	// The dates the parser reads are all periods; the identity and the contact
+	// hold none.
+	for _, block := range []struct {
+		name   string
+		fields []Field
+	}{{"identity", IdentitySchema().Fields}, {"contact", ContactSchema().Fields}} {
+		if hasFieldKind(block.fields, FieldDate) {
+			t.Errorf("the %s block asks for a calendar", block.name)
+		}
+	}
+}
+
 func TestPreviewShowsTheRealLayout(t *testing.T) {
 	rec := post(t, testServer(t), "/api/preview", sample)
 	if rec.Code != http.StatusOK {

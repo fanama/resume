@@ -40,6 +40,82 @@ func testLayout(lang model.Lang) *layout.Layout {
 	return layout.New(r, layout.Options{Lang: lang})
 }
 
+// TestRenderReportIsTheRenderItself pins what "build" relies on: the page
+// count comes out of the render that wrote the file. Measuring afterwards
+// would run the document again, fonts included, for a number this pass knew.
+func TestRenderReportIsTheRenderItself(t *testing.T) {
+	l := testLayout(model.LangFR)
+	opts := DefaultOptions()
+
+	var buf bytes.Buffer
+	rep, err := RenderReport(&buf, l, opts)
+	if err != nil {
+		t.Fatalf("RenderReport: %v", err)
+	}
+	if !bytes.HasPrefix(buf.Bytes(), []byte("%PDF-")) {
+		t.Fatalf("RenderReport wrote %d bytes that are not a PDF", buf.Len())
+	}
+	measured, err := Measure(l, opts)
+	if err != nil {
+		t.Fatalf("Measure: %v", err)
+	}
+	if rep != measured {
+		t.Errorf("report = %+v, want the %+v Measure finds", rep, measured)
+	}
+	if rep.Pages < 1 {
+		t.Errorf("Pages = %d, want at least 1", rep.Pages)
+	}
+}
+
+// TestTheFontFilesAreReadOnce covers the memoising the renderer does: the
+// resolution stats every spelling of the family in every font directory and
+// the read is more than a megabyte of TrueType data fpdf parses again. Two
+// renders with the same options must cost one resolution and one read per
+// file, on a machine that has fonts and on the container, which has none.
+func TestTheFontFilesAreReadOnce(t *testing.T) {
+	fontDataMu.Lock()
+	savedData := fontData
+	fontData = map[string][]byte{}
+	fontDataMu.Unlock()
+	fontPathMu.Lock()
+	savedPaths := fontPaths
+	fontPaths = map[fontKey][2]string{}
+	fontPathMu.Unlock()
+	t.Cleanup(func() {
+		fontDataMu.Lock()
+		fontData = savedData
+		fontDataMu.Unlock()
+		fontPathMu.Lock()
+		fontPaths = savedPaths
+		fontPathMu.Unlock()
+	})
+
+	l := testLayout(model.LangFR)
+	opts := DefaultOptions()
+	for i := 0; i < 2; i++ {
+		data, err := Bytes(l, opts)
+		if err != nil {
+			t.Fatalf("render %d: %v", i, err)
+		}
+		if !bytes.HasPrefix(data, []byte("%PDF-")) {
+			t.Fatalf("render %d is not a PDF", i)
+		}
+	}
+
+	fontDataMu.Lock()
+	reads := len(fontData)
+	fontDataMu.Unlock()
+	if reads > 2 {
+		t.Errorf("%d font files were read for two renders, want at most 2: the cache did not hold", reads)
+	}
+	fontPathMu.Lock()
+	resolutions := len(fontPaths)
+	fontPathMu.Unlock()
+	if resolutions != 1 {
+		t.Errorf("%d font resolutions for one set of options, want 1: the stat walk ran again", resolutions)
+	}
+}
+
 func TestRenderProducesAPDF(t *testing.T) {
 	data, err := Bytes(testLayout(model.LangFR), DefaultOptions())
 	if err != nil {

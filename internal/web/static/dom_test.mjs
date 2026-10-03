@@ -66,7 +66,9 @@ class Node {
     return out;
   }
   matches(selector) {
-    if (selector.startsWith('.')) return this.classList.contains(selector.slice(1));
+    // A compound selector like ".tab.is-active" asks for every one of its
+    // classes: the editor picks the open tab that way.
+    if (selector.startsWith('.')) return selector.slice(1).split('.').every((c) => this.classList.contains(c));
     if (selector.startsWith('#')) return this.id === selector.slice(1);
     if (selector.startsWith('[')) {
       const m = /^\[([^=\]]+)(?:="([^"]*)")?\]$/.exec(selector);
@@ -83,6 +85,7 @@ const document = {
   createElement: (tag) => new Node(tag),
   createTextNode: (text) => { const n = new Node('#text'); n._text = text; return n; },
   getElementById(id) { return document.documentElement.querySelector('#' + id); },
+  querySelector: (s) => document.documentElement.querySelector(s),
   querySelectorAll: (s) => document.documentElement.querySelectorAll(s),
   addEventListener: (t, fn) => { (documentListeners[t] ||= []).push(fn); },
   body: new Node('body'),
@@ -144,6 +147,36 @@ globalThis.fetch = async (url, init) => {
 
 /* ------------------------------------------------------------------ run it */
 
+// The store is seeded with the shape the server actually answers: Go marshals
+// a nil slice as null and Normalize drops the empty lists, so every section an
+// import left untouched comes back as null rather than []. The editor must
+// repair that, or the first add into an empty list goes nowhere.
+storage.set('atscv.sessions.v1', JSON.stringify({
+  sessions: [{
+    id: 'seed',
+    name: 'Seed',
+    updatedAt: 1,
+    data: {
+      lang: 'fr', name: '', headline: '', summary: '',
+      contact: { email: '', phone: '', city: '', region: '', country: '', note: '', links: null },
+      // One entry whose dates the calendar must always show: a month at its
+      // own month, a running period at today — and the model untouched.
+      education: [{ degree: 'Master 2', school: 'Université', start: '2022-09', end: 'present' }],
+      // Two certifications for the shapes no calendar points at by
+      // default: a bare year, a month written with its name, and a
+      // month/year pair as an import writes one.
+      certifications: [
+        { name: 'CKA', issuer: 'CNCF', date: '2021' },
+        { name: 'Kubernetes', issuer: 'CNCF', date: 'mars 2019' },
+        { name: 'Terraform', issuer: 'HashiCorp', date: '12/2018' },
+      ],
+      experience: null, skills: [],
+      projects: [], activities: [], languages: [],
+    },
+  }],
+  current: 'seed',
+}));
+
 const src = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 new Function(src)();
 for (const fn of documentListeners.DOMContentLoaded || []) await fn();
@@ -162,6 +195,11 @@ const fieldOf = (key) => {
 };
 const labelOf = (section) => (schemaServed.lang === 'en' ? (section.label_en || section.label_fr) : section.label_fr);
 const cardOf = (section) => target.descendants().find((n) => n.tagName === 'SECTION' && (n.textContent || '').indexOf(labelOf(section)) === 0);
+
+/* 0. a list the model never wrote is turned into a real array, so the add
+      button has somewhere to push to */
+check(Array.isArray(snapshot().experience),
+  'a null section list was not repaired: ' + JSON.stringify(snapshot().experience));
 
 /* 1. every section of the schema got a card, and the blocks that are not
       lists got their fields */
@@ -232,6 +270,84 @@ del.click();
 runFrames();
 check(snapshot().experience.length === 1, 'the delete button did not remove the entry');
 
+/* 4b. an empty list field takes an item, even though the model held null */
+const contactSection = schemaServed.contact;
+const addLink = cardOf(contactSection).querySelectorAll('button').find((b) => /^\+ /.test(b.textContent));
+check(!!addLink, 'the contact block has no add button for the links');
+if (addLink) { addLink.click(); runFrames(); }
+check(Array.isArray(snapshot().contact.links) && snapshot().contact.links.length === 1,
+  'the add button did not add a link to the empty list: ' + JSON.stringify(snapshot().contact.links));
+
+/* 4c. a date is one field — the native calendar — and it writes the month
+      the parser reads back into the model */
+const experienceSection = schemaServed.sections.find((s) => s.key === 'experience');
+const startDef = experienceSection.fields.find((f) => f.key === 'start');
+check(startDef && startDef.kind === 'date', 'the start field is not published as a date: ' + (startDef && startDef.kind));
+const startDate = fieldOf('start');
+const startField = startDate && fields().find((f) => f.descendants().indexOf(startDate) >= 0);
+check(!!startDate, 'the date field has no input');
+check(!!startField && startField.descendants().filter((n) => n.tagName === 'INPUT').length === 1,
+  'the date field draws more than one input');
+check(!!startDate && ['month', 'date'].includes(startDate.getAttribute('type')),
+  'the date input is a "' + (startDate && startDate.getAttribute('type')) + '", want the native calendar');
+if (startDate) {
+  startDate.value = '2023-07';
+  startDate.dispatchEvent({ type: 'input' });
+  runFrames();
+  check(snapshot().experience[0].start === '2023-07',
+    'the calendar wrote ' + JSON.stringify(snapshot().experience[0].start) + ' for a july pick, want 2023-07');
+  startDate.value = '2023-11';
+  startDate.dispatchEvent({ type: 'change' });
+  runFrames();
+  check(snapshot().experience[0].start === '2023-11',
+    'committing the calendar wrote ' + JSON.stringify(snapshot().experience[0].start) + ', want 2023-11');
+  startDate.value = '';
+  startDate.dispatchEvent({ type: 'change' });
+  runFrames();
+  check(snapshot().experience[0].start === '',
+    'clearing the calendar left ' + JSON.stringify(snapshot().experience[0].start));
+}
+
+/* 4d. a date the model holds is always shown by the calendar — a month at
+      its own month, a bare year at January, a running period at today — and
+      what the calendar points at reaches the model only when it is picked */
+const fieldLabelOf = (section, key) => {
+  const def = section.fields.find((f) => f.key === key);
+  return schemaServed.lang === 'en' ? (def.label_en || def.label_fr) : def.label_fr;
+};
+// The inputs of a card whose field label starts with that label, in order:
+// a repeatable section draws one field per entry.
+const inputsOf = (card, label) => card.descendants()
+  .filter((n) => n.classList.contains('field') && (n.textContent || '').indexOf(label) === 0)
+  .map((n) => n.descendants().find((d) => d.tagName === 'INPUT'));
+
+const educationSection = schemaServed.sections.find((s) => s.key === 'education');
+const educationCard = cardOf(educationSection);
+const eduStart = educationCard && inputsOf(educationCard, fieldLabelOf(educationSection, 'start'))[0];
+const eduEnd = educationCard && inputsOf(educationCard, fieldLabelOf(educationSection, 'end'))[0];
+check(!!eduStart && eduStart.value === '2022-09',
+  'the calendar does not show the month the model holds: ' + JSON.stringify(eduStart && eduStart.value));
+check(!!eduEnd && /^\d{4}-\d{2}$/.test(eduEnd.value),
+  'a running period shows an empty calendar: ' + JSON.stringify(eduEnd && eduEnd.value));
+check(snapshot().education[0].end === 'present',
+  'the model lost "present": ' + JSON.stringify(snapshot().education[0].end));
+
+const certificationsSection = schemaServed.sections.find((s) => s.key === 'certifications');
+const certificationsCard = cardOf(certificationsSection);
+const certDates = certificationsCard
+  ? inputsOf(certificationsCard, fieldLabelOf(certificationsSection, 'date'))
+  : [];
+check(certDates.length === 3, 'the certification dates did not draw: ' + certDates.length);
+check(certDates[0] && certDates[0].value === '2021-01',
+  'a year alone shows ' + JSON.stringify(certDates[0] && certDates[0].value) + ', want 2021-01');
+check(certDates[1] && certDates[1].value === '2019-03',
+  'a month name shows ' + JSON.stringify(certDates[1] && certDates[1].value) + ', want 2019-03');
+check(certDates[2] && certDates[2].value === '2018-12',
+  'a month/year pair shows ' + JSON.stringify(certDates[2] && certDates[2].value) + ', want 2018-12');
+check(snapshot().certifications.map((c) => c.date).join(', ') === '2021, mars 2019, 12/2018',
+  'the calendar rewrote the dates it only displays: ' +
+    JSON.stringify(snapshot().certifications.map((c) => c.date)));
+
 /* 5. the draft survives a reload */
 await new Promise((r) => setTimeout(r, 600));
 const raw = localStorage.getItem('atscv.sessions.v1');
@@ -260,14 +376,32 @@ await new Promise((r) => setTimeout(r, 600));
 const store4 = JSON.parse(localStorage.getItem('atscv.sessions.v1'));
 check(store4.sessions.length === 1 && store4.current === firstId, 'the session was not deleted: ' + JSON.stringify(store4.sessions.map((s) => s.id)));
 
-/* 7. an edit asks for a new preview, and the download carries the draft */
-let changes = 0;
-document.body.addEventListener('cv:change', () => { changes++; });
+/* 7. an edit asks for one refresh, for the panel on screen, after the debounce;
+      and the download carries the draft */
+const refreshes = [];
+for (const name of ['cv:preview', 'cv:report', 'cv:text']) {
+  document.body.addEventListener(name, () => refreshes.push(name));
+}
 fieldOf('headline').value = 'Ingénieure分布式';
 fieldOf('headline').dispatchEvent({ type: 'input' });
-check(changes === 0, 'a keystroke asked for a preview without waiting for the debounce');
+check(refreshes.length === 0, 'a keystroke asked for a preview without waiting for the debounce');
 await new Promise((r) => setTimeout(r, 350));
-check(changes > 0, 'an edit did not ask for a new preview');
+check(refreshes.length === 1,
+  'one edit asked for ' + refreshes.length + ' refreshes, want exactly 1: ' + refreshes.join(', '));
+check(refreshes[0] === 'cv:preview',
+  'the edit refreshed ' + refreshes.join(', ') + ' instead of the preview on screen');
+
+/* 7b. opening a tab asks for the panel it was hiding, and only then */
+const reportTab = document.querySelectorAll('.tab').find((b) => b.dataset.tab === 'report');
+check(!!reportTab, 'no diagnostic tab');
+refreshes.length = 0;
+reportTab.click();
+check(refreshes.join(',') === 'cv:report',
+  'opening the diagnostic asked for [' + refreshes.join(', ') + '], want cv:report');
+refreshes.length = 0;
+reportTab.click();
+check(refreshes.length === 0,
+  'clicking the tab already open asked again: ' + refreshes.join(', '));
 check(snapshot().headline === 'Ingénieure分布式', 'the last edit is not in the model');
 
 check(document.getElementById('name-field').value === 'Jeanne Rousseau',
