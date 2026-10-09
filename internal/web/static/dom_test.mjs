@@ -107,7 +107,7 @@ for (const tab of ['preview', 'report', 'text']) {
   const p = new Node('div'); p.id = 'panel-' + tab; p.className = 'tabpanel';
   document.body.appendChild(t); document.body.appendChild(p);
 }
-for (const format of ['docx', 'pdf', 'adoc', 'txt']) {
+for (const format of ['docx', 'pdf', 'adoc', 'txt', 'tex']) {
   const b = new Node('button'); b.setAttribute('data-format', format);
   document.body.appendChild(b);
 }

@@ -17,6 +17,7 @@ import (
 	"github.com/fanama/resume/atscv/internal/render/adoc"
 	"github.com/fanama/resume/atscv/internal/render/docx"
 	"github.com/fanama/resume/atscv/internal/render/pdf"
+	"github.com/fanama/resume/atscv/internal/render/tex"
 	"github.com/fanama/resume/atscv/internal/render/txt"
 )
 
@@ -266,12 +267,17 @@ func newReportPayload(report lint.Report) reportPayload {
 func (s *Server) handleRender(w http.ResponseWriter, r *http.Request) {
 	in, err := s.readInput(w, r)
 	if err != nil {
-		s.fail(w, r, err)
+		s.failDownload(w, err)
 		return
 	}
 	body, contentType, err := s.renderBytes(r.PathValue("format"), in)
 	if err != nil {
-		s.fail(w, r, err)
+		// A download is never an htmx fragment, so it never gets the 200 that
+		// lets a fragment be swapped: the caller is a fetch() that checks
+		// res.ok, or a curl -o file, and both have to be able to tell a
+		// document from an error. Answering 200 with an HTML fragment made a
+		// failed render download an HTML page named after the candidate.
+		s.failDownload(w, err)
 		return
 	}
 	name := in.name + "." + extensionFor(r.PathValue("format"))
@@ -301,7 +307,7 @@ func contentDisposition(name string) string {
 
 func extensionFor(format string) string {
 	switch format {
-	case "docx", "pdf", "adoc", "txt":
+	case "docx", "pdf", "adoc", "txt", "tex":
 		return format
 	default:
 		return "bin"
@@ -355,12 +361,31 @@ func (s *Server) renderBytes(format string, in input) ([]byte, string, error) {
 		return []byte(adoc.Render(in.layout, opts)), "text/plain; charset=utf-8", nil
 	case "txt":
 		return []byte(txt.Render(in.layout)), "text/plain; charset=utf-8", nil
+	case "tex":
+		// The LaTeX source is written in pure Go: the server never runs an
+		// external tool, and the file it answers with is the one the CLI
+		// would have written.
+		opts := tex.Options{
+			Lang:         in.layout.OptsLang(),
+			SectionRules: s.opts.SectionRules,
+			Accent:       s.opts.Accent,
+			FontSize:     s.opts.FontSize,
+		}
+		return []byte(tex.Render(in.layout, opts)), "text/x-tex; charset=utf-8", nil
 	default:
-		return nil, "", fmt.Errorf("unknown format %q, want docx, pdf, adoc or txt", format)
+		return nil, "", fmt.Errorf("unknown format %q, want docx, pdf, adoc, txt or tex", format)
 	}
 }
 
 const docxContentType = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+
+// failDownload answers the error of a download. Unlike the HTMX panels, a
+// render is never a fragment: the caller is a fetch() that guards on res.ok, or
+// a curl -o file, and both have to be able to tell a document from an error. A
+// 200 here saved an HTML page under the name of the candidate's CV.
+func (s *Server) failDownload(w http.ResponseWriter, err error) {
+	writeJSON(w, http.StatusBadRequest, errorResponse{Error: err.Error()})
+}
 
 // fail answers an error, as an HTML fragment or as JSON.
 func (s *Server) fail(w http.ResponseWriter, r *http.Request, err error) {

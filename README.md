@@ -4,7 +4,7 @@ Un générateur de CV lisible par les Applicant Tracking Systems (ATS), écrit e
 sans aucune dépendance en dehors de la bibliothèque PDF.
 
 Le CV est décrit dans un fichier JSON externe, puis rendu en `.docx`, `.pdf`,
-`.adoc` et `.txt`. Les quatre sorties partagent le même flux de blocs, donc un
+`.adoc`, `.tex` et `.txt`. Les cinq sorties partagent le même flux de blocs, donc un
 ATS qui extrait le texte du PDF lit exactement le même ordre que celui du DOCX.
 
 ## Installation
@@ -160,7 +160,7 @@ d'accueil ne lit aucun CV et n'appelle aucun renderer.
 
 `/editor` est un formulaire complet
 construit à partir du schéma publié par le serveur, un aperçu qui se met à jour
-à la frappe, le rapport ATS, le texte brut que l'ATS extrait, et quatre
+à la frappe, le rapport ATS, le texte brut que l'ATS extrait, et cinq
 téléchargements.
 
 L'aperçu est redessiné **pendant** la frappe, pas à l'arrêt : la première
@@ -200,14 +200,47 @@ est plafonné à 2 Mio.
 | --- | --- |
 | `GET /api/schema` | le schéma des champs, la source de vérité du formulaire |
 | `POST /api/parse` | le CV validé et normalisé, ou `400` avec le champ fautif |
+| `POST /api/import` | remplit le formulaire depuis le texte d'un PDF lu dans le navigateur |
 | `POST /api/lint` | le rapport en fragment HTML, ou en JSON avec `?format=json` |
 | `POST /api/preview` | l'aperçu, rendu par le même `layout` que le PDF |
 | `POST /api/text` | le texte brut, échappé, ou en JSON avec `?format=json` |
-| `POST /api/render/{docx,pdf,adoc,txt}` | le fichier, en téléchargement |
+| `POST /api/render/{docx,pdf,adoc,txt,tex}` | le fichier, en téléchargement |
 | `GET /api/style.css` | l'accent et le corps, en CSS, pour une CSP stricte |
+| `GET /api/demo` | le CV de démonstration, ou `404` si aucun n'est configuré |
 | `GET /` | la page d'accueil, en HTML, sans toucher au CV |
 | `GET /editor` | l'éditeur |
 | `GET /healthz` | `ok` |
+
+**Les deux formes d'erreur ne sont pas les mêmes.** Les trois panneaux de
+l'éditeur (`preview`, `lint`, `text`) répondent `200` même en cas d'erreur, avec
+le message dans le fragment : htmx n'injecte pas un corps `4xx`, donc un `400`
+y laisserait un panneau vide et muet. Un rendu, lui, n'est jamais un fragment —
+son appelant est un `fetch()` qui teste `res.ok`, ou un `curl -o fichier` — donc
+`/api/render/*` répond toujours `400` en JSON. C'est ce qui empêche un échec de
+s'écrire sur le disque sous le nom du CV : sans cela, un brouillon mal formé
+sauvegardait une page HTML dans `X.docx`.
+
+### Importer un PDF
+
+Le bouton d'import de l'éditeur accepte un `.json` ou un `.pdf`. Le JSON est
+validé par `/api/parse`. Un PDF, lui, est un rendu et non des données : le
+fichier est décodé **dans le navigateur**, où il se trouve déjà, et seul le
+texte qui en sort est posté à `/api/import`. Le serveur ne voit jamais le PDF.
+
+```jsonc
+// corps de la requête, et réponse
+{ "text": "Jean Dupont\nDéveloppeur Go\n…", "lang": "fr" }
+// → { "resume": { … }, "unmapped": ["Rubrique inconnue : Centres d'intérêt"] }
+```
+
+`unmapped` nomme les rubriques que le schéma n'a su où mettre : elles sont
+signalées dans l'éditeur plutôt qu'absorbées en silence. Un PDF scanné n'a pas
+de couche texte, donc pas d'OCR : l'éditeur le dit et propose le JSON.
+
+Le remplissage est une **estimation** — la mise en page décide ce qu'est une
+ligne, et les heuristiques décident ce qu'elle veut dire. Ce qui revient remplit
+le formulaire champ par champ, et c'est le candidat qui corrige : le brouillon
+est le document éditable.
 
 ```sh
 # Valider un JSON sans navigateur
@@ -243,7 +276,7 @@ le même profil.
 | --- | --- | --- |
 | `-i`, `-in` | — | fichier JSON d'entrée, obligatoire |
 | `-o` | `.` | répertoire de sortie, ou fichier si `-f` ne liste qu'un format |
-| `-f` | `docx,pdf,adoc` | `docx`, `pdf`, `adoc`, `txt` |
+| `-f` | `docx,pdf,adoc` | `docx`, `pdf`, `adoc`, `txt`, `tex` |
 | `-lang` | celui du JSON | `fr` ou `en`, pour les titres de rubriques |
 | `-name` | nom du JSON | nom de base des fichiers générés |
 | `-dates` | `numeric` | `numeric` (`03/2022 - 08/2022`), `month` (`mars 2022 - août 2022`), `year` |
@@ -371,6 +404,20 @@ readability 81/100 | ~2 page(s) | 647 words | 7 entries | 15 achievement lines, 
 `check` ne sort en 1 que sur les `error`, ce qui permet de l'utiliser dans un
 Makefile ou une CI.
 
+**Les deux notes ne sont pas la même chose.** Le rapport JSON expose deux
+nombres, et ils ne se remplacent pas :
+
+| Champ | Ce qu'il mesure |
+| --- | --- |
+| `score` | la pénalité appliquée aux constats : −12 par `error`, −4 par `warning`, −1 par `info`. C'est la note du rapport. |
+| `stats.ATSReadability` | la lisibilité du texte extrait, calculée sur le document lui-même. C'est celle qu'affiche la ligne de commande (`readability 81/100`). |
+
+Sur le CV de démonstration, `score` vaut 87 et `ATSReadability` 81 : la note du
+rapport part de 100 et redescend avec les constats, alors que la lisibilité
+regarde la longueur des lignes, la structure et les dates. Un CV peut être
+lisible et mal noté, ou l'inverse. Ni l'une ni l'autre n'est une
+garantie : ce sont des estimations, pas ce qu'un recruteur décidera.
+
 ## Format des données
 
 Un seul champ par information, et uniquement des faits : le générateur n'invente
@@ -433,7 +480,7 @@ gofmt -l .
 
 La suite couvre le schéma JSON, le formatage des dates, l'ordre des rubriques, la
 pliage des accents, l'interdiction des structures hostiles dans le DOCX, la police
-et le repli cp1252 du PDF, les quatre renderers, la CLI de bout en bout et
+et le repli cp1252 du PDF, les cinq renderers, la CLI de bout en bout et
 l'API web : routes, codes de statut, en-têtes, échappement, et un garde-fou qui
 échoue si un champ du modèle n'a pas d'entrée dans le formulaire.
 
@@ -446,6 +493,30 @@ qu'une rafale n'en déclenche qu'une, et que le téléchargement porte le bon
 brouillon. Il est ignoré si `node` est absent.
 
 Le `.docx` produit est reproductible bit à bit, ce qui permet de le versionner.
+
+## Rendu LaTeX
+
+Le renderer écrit un `.tex` **en Go pur** : aucune distribution TeX n'est
+nécessaire pour produire le fichier, aucun outil externe n'est exécuté, et le
+binaire garde sa seule dépendance. Le document suit le contrat ATS des autres
+rendus — une colonne, pas de tableau, pas d'image, des puces natives, ni
+en-tête ni numéro de page — et la même échelle typographique que le PDF :
+l'accent, le corps et les filets viennent de `-accent`, `-size` et `-rules`.
+
+```sh
+./atscv build -i data/resume.fr.json -o dist/ -f tex
+pdflatex -output-directory dist dist/resume.fr.tex
+```
+
+La compilation est la seule étape qui demande TeX, et elle revient à qui lit
+le fichier. Les paquets employés — `geometry`, `xcolor`, `babel`, `lmodern` —
+figurent dans toute distribution complète (`texlive-latex-recommended` suffit
+sous Debian). Chaque caractère spécial du texte est échappé à la génération :
+un CV contient des `&`, des `%` et des `_`, et aucun ne fait échouer la
+compile.
+
+Le serveur expose le même rendu : `POST /api/render/tex` répond la source en
+`text/x-tex`, et le bouton « Télécharger LaTeX » de l'éditeur la récupère.
 
 ## Rendu AsciiDoc
 

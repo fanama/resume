@@ -186,7 +186,7 @@ func TestAPIAnswersAreCompressed(t *testing.T) {
 // anyway.
 func TestDocumentDownloadsAreNotCompressed(t *testing.T) {
 	srv := testServer(t)
-	for _, format := range []string{"pdf", "docx", "txt", "adoc"} {
+	for _, format := range []string{"pdf", "docx", "txt", "adoc", "tex"} {
 		rec := postEncoded(t, srv, "/api/render/"+format, sample, "gzip")
 		if rec.Code != http.StatusOK {
 			t.Errorf("/api/render/%s status = %d: %s", format, rec.Code, rec.Body.String())

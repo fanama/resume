@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>atscv — un CV que les ATS lisent</title>
-<meta name="description" content="atscv décrit un CV une fois, en JSON, puis le rend en DOCX, PDF, AsciiDoc et texte brut, avec un linter ATS et une pagination mesurée.">
+<meta name="description" content="atscv décrit un CV une fois, en JSON, puis le rend en DOCX, PDF, AsciiDoc, LaTeX et texte brut, avec un linter ATS et une pagination mesurée.">
 <link rel="stylesheet" href="/static/app.css">
 <link rel="stylesheet" id="accent" href="/api/style.css?accent={{.Accent}}&amp;size={{.Body}}">
 <link rel="stylesheet" href="/static/home.css">
@@ -31,7 +31,7 @@
     <p class="eyebrow">Applicant Tracking Systems · Go · une seule dépendance</p>
     <h1>Un CV que les ATS lisent, et que le recruteur finit.</h1>
     <p class="lead">atscv décrit votre CV une seule fois, dans un fichier JSON, puis le rend
-    en <b>DOCX</b>, <b>PDF</b>, <b>AsciiDoc</b> et <b>texte brut</b>. Les quatre sorties
+    en <b>DOCX</b>, <b>PDF</b>, <b>AsciiDoc</b>, <b>LaTeX</b> et <b>texte brut</b>. Les cinq sorties
     partagent le même flux de blocs&nbsp;: ce qu’un parser extrait du PDF, il l’extrait aussi
     du DOCX, dans le même ordre.</p>
     <p class="actions">
@@ -39,7 +39,7 @@
     </p>
     <ul class="facts">
       <li><b>1</b> source JSON</li>
-      <li><b>4</b> formats</li>
+      <li><b>5</b> formats</li>
       <li><b>1</b> dépendance, la bibliothèque PDF</li>
       <li><b>0</b> compte, <b>0</b> octet envoyé à un tiers</li>
     </ul>
@@ -64,7 +64,7 @@
       </article>
       <article>
         <h3>Le même ordre partout</h3>
-        <p>Les quatre renderers partagent le même modèle de blocs, donc le même ordre de
+        <p>Les cinq renderers partagent le même modèle de blocs, donc le même ordre de
         lecture. Le PDF ne réordonne pas ce que le DOCX a sequencé.</p>
       </article>
       <article>
@@ -92,9 +92,9 @@
       </li>
       <li>
         <h3>Exporter</h3>
-        <p>Un JSON, quatre fichiers. Le <code>.docx</code> pour l’envoi, le <code>.pdf</code>
-        pour l’archive, l’AsciiDoc pour la version web, le <code>.txt</code> pour vérifier
-        soi-même ce qu’un ATS lit.</p>
+        <p>Un JSON, cinq fichiers. Le <code>.docx</code> pour l’envoi, le <code>.pdf</code>
+        pour l’archive, l’AsciiDoc pour la version web, le <code>.tex</code> pour composer le
+        PDF avec LaTeX, le <code>.txt</code> pour vérifier soi-même ce qu’un ATS lit.</p>
       </li>
     </ol>
   </section>
@@ -155,7 +155,7 @@ ok: 232 words, 4 entries, 10 skills, 1 page</code></pre>
       </article>
       <article>
         <h3>Import et export</h3>
-        <p>Un JSON entre, un JSON sort&nbsp;; les quatre formats se téléchargent depuis la
+        <p>Un JSON entre, un JSON sort&nbsp;; les cinq formats se téléchargent depuis la
         même page. Vos données restent un fichier que vous détenez.</p>
       </article>
     </div>
@@ -163,9 +163,9 @@ ok: 232 words, 4 entries, 10 skills, 1 page</code></pre>
   </section>
 
   <section id="formats">
-    <h2>Quatre formats, un seul flux de blocs</h2>
+    <h2>Cinq formats, un seul flux de blocs</h2>
     <table>
-      <caption class="sr-only">Les quatre formats produits par atscv et leur usage</caption>
+      <caption class="sr-only">Les cinq formats produits par atscv et leur usage</caption>
       <thead>
         <tr><th scope="col">Format</th><th scope="col">Pour quoi</th></tr>
       </thead>
@@ -174,6 +174,7 @@ ok: 232 words, 4 entries, 10 skills, 1 page</code></pre>
         <tr><th scope="row"><code>.pdf</code></th><td>L’archive, et le rendu que l’on veut voir avant d’envoyer.</td></tr>
         <tr><th scope="row"><code>.adoc</code></th><td>La version web, versionnable dans un dépôt.</td></tr>
         <tr><th scope="row"><code>.txt</code></th><td>La vérité&nbsp;: l’ordre de lecture brut, sans mise en forme.</td></tr>
+        <tr><th scope="row"><code>.tex</code></th><td>La source LaTeX, écrite en Go pur, pour composer le PDF avec sa propre distribution TeX.</td></tr>
       </tbody>
     </table>
   </section>

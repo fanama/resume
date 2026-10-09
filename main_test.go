@@ -56,12 +56,12 @@ func TestVersionAndHelp(t *testing.T) {
 func TestBuildWritesEveryFormat(t *testing.T) {
 	dir := t.TempDir()
 	out, _, err := runCLI(t, "build", "-i", dataFile(t, "resume.fr.json"),
-		"-o", dir, "-f", "docx,pdf,adoc,txt")
+		"-o", dir, "-f", "docx,pdf,adoc,txt,tex")
 	if err != nil {
 		t.Fatalf("build: %v", err)
 	}
 	base := filepath.Join(dir, "resume.fr")
-	for _, ext := range []string{".docx", ".pdf", ".adoc", ".txt"} {
+	for _, ext := range []string{".docx", ".pdf", ".adoc", ".txt", ".tex"} {
 		path := base + ext
 		info, err := os.Stat(path)
 		if err != nil {
@@ -83,6 +83,10 @@ func TestBuildWritesEveryFormat(t *testing.T) {
 	}
 	if head := head(t, base+".adoc", 2); !strings.HasPrefix(string(head), "= ") {
 		t.Errorf("the adoc must start with its title, got %q", head)
+	}
+	// The LaTeX file opens with the comment that says what generated it.
+	if head := head(t, base+".tex", 2); !strings.HasPrefix(string(head), "% ") {
+		t.Errorf("the tex must start with its header comment, got %q", head)
 	}
 }
 

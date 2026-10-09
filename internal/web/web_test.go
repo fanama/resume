@@ -489,13 +489,16 @@ func TestParseValidatesAndNormalizes(t *testing.T) {
 	}
 }
 
-func TestRenderWritesTheFourDocuments(t *testing.T) {
+func TestRenderWritesTheFiveDocuments(t *testing.T) {
 	s := testServer(t)
 	for _, c := range []struct{ format, contentType, magic string }{
 		{"docx", docxContentType, "PK\x03\x04"},
 		{"pdf", "application/pdf", "%PDF"},
 		{"adoc", "text/plain; charset=utf-8", ""},
 		{"txt", "text/plain; charset=utf-8", ""},
+		// The LaTeX source is written in Go, so the answer opens with the
+		// comment that describes the document, like the CLI's own file.
+		{"tex", "text/x-tex; charset=utf-8", "% "},
 	} {
 		rec := post(t, s, "/api/render/"+c.format, sample)
 		if rec.Code != http.StatusOK {
@@ -542,23 +545,48 @@ func TestRenderWritesTheFourDocuments(t *testing.T) {
 	}
 }
 
-// TestRenderRejectsAnUnknownFormat pins the two shapes of an error. A script
-// gets a status it can test, htmx gets a fragment it can swap: a 4xx body is
-// never injected by htmx, so the editor would show nothing at all.
+// TestRenderRejectsAnUnknownFormat pins the shape of the error. A render is a
+// download, never an htmx fragment, so it answers a status the caller can test
+// whatever it asked for: htmx does not swap a 4xx body, but htmx never posts
+// here either, and a fetch() or a curl -o file has to be able to tell a
+// document from an error.
 func TestRenderRejectsAnUnknownFormat(t *testing.T) {
-	rec := post(t, testServer(t), "/api/render/xls?format=json", sample)
-	if rec.Code != http.StatusBadRequest {
-		t.Errorf("status = %d, want 400", rec.Code)
+	for _, path := range []string{"/api/render/xls?format=json", "/api/render/xls"} {
+		rec := post(t, testServer(t), path, sample)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want 400", path, rec.Code)
+		}
+		if !strings.Contains(rec.Body.String(), "unknown format") {
+			t.Errorf("%s: body = %s", path, rec.Body)
+		}
 	}
-	if !strings.Contains(rec.Body.String(), "unknown format") {
-		t.Errorf("body = %s", rec.Body)
-	}
-	rec = post(t, testServer(t), "/api/render/xls", sample)
-	if rec.Code != http.StatusOK {
-		t.Errorf("the fragment path returned %d, want 200 so htmx can swap it", rec.Code)
-	}
-	if !strings.Contains(rec.Body.String(), "error") {
-		t.Errorf("the fragment shows no error: %s", rec.Body)
+}
+
+// TestRenderFailsLoudlyOnABadResume is the regression for a silent corruption:
+// a render that could not parse its input used to answer 200 with an HTML
+// fragment, and the caller — a fetch() guarding on res.ok, or the README's
+// curl -o cv.pdf — saved that fragment under the name of the document.
+func TestRenderFailsLoudlyOnABadResume(t *testing.T) {
+	const broken = `{"name":"Jean","experiance":[]}`
+	for _, format := range []string{"docx", "pdf", "adoc", "txt", "tex"} {
+		rec := post(t, testServer(t), "/api/render/"+format, broken)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%s: status = %d, want 400 so the caller sees the failure", format, rec.Code)
+		}
+		// Nothing that announces itself as a document may come back.
+		if got := rec.Header().Get("Content-Disposition"); got != "" {
+			t.Errorf("%s: a failed render still offered a download: %q", format, got)
+		}
+		if ct := rec.Header().Get("Content-Type"); !strings.HasPrefix(ct, "application/json") {
+			t.Errorf("%s: Content-Type = %q, want JSON so the error is never mistaken for the file", format, ct)
+		}
+		// The error must be readable as JSON, which is what the browser parses.
+		var payload errorResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &payload); err != nil {
+			t.Errorf("%s: the error is not JSON: %v (%s)", format, err, rec.Body)
+		} else if !strings.Contains(payload.Error, "experiance") {
+			t.Errorf("%s: the error does not name the offending field: %q", format, payload.Error)
+		}
 	}
 }
 
