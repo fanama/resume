@@ -570,3 +570,20 @@ modèle exactement ce que la vue « Texte brut » montre — l'ordre de lecture
 qu'un parseur extrait — et la réponse est rendue en `textContent`, jamais en
 HTML. Sans WebGPU, avec un CV invalide ou hors ligne, le bouton explique
 l'échec au lieu de faire semblant.
+
+Chaque phase d'attente a son signe : un spinner pendant la lecture du CV, le
+chargement du moteur et la génération ; une barre de progression en pourcentage
+pendant le téléchargement des poids, seule phase mesurée ; la réponse qui
+s'écrit derrière un curseur clignotant ; le temps de réponse affiché à la fin,
+et l'erreur en rouge. Tout est en CSS externe, la politique interdit le style
+inline.
+
+Deux actions vont plus loin que la relecture, avec le même garde-fou que
+l'import : **« Optimiser le contenu »** réécrit l'accroche, le résumé et les
+points (verbe d'action en tête, chiffres conservés, aucun fait inventé) et
+**« Traduire »** passe le CV de `fr` à `en` ou l'inverse — nom, contact et
+dates intacts, champ `lang` basculé, les libellés suivent automatiquement. Le
+modèle doit renvoyer le JSON complet, qui repasse par `POST /api/parse` :
+sans son feu vert, rien n'est appliqué. Ce qui passe ouvre une **nouvelle
+session** — le motif de l'import PDF — donc le brouillon d'origine reste à
+côté, comparable et intact.

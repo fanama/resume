@@ -57,6 +57,15 @@ class Node {
     return {
       toggle(name, on) { const has = self.className.split(' ').includes(name); const want = on === undefined ? !has : on; self.className = want ? (self.className + ' ' + name).trim() : self.className.split(' ').filter((c) => c && c !== name).join(' '); return want; },
       contains: (name) => self.className.split(' ').includes(name),
+      // add and remove, as the DOM has them: the analysis panel streams an
+      // answer behind a class it takes off again when the last token lands.
+      add(...names) {
+        const kept = self.className.split(' ').filter((c) => c && !names.includes(c));
+        self.className = kept.concat(names).join(' ');
+      },
+      remove(...names) {
+        self.className = self.className.split(' ').filter((c) => c && !names.includes(c)).join(' ');
+      },
     };
   }
   descendants() {
@@ -440,11 +449,29 @@ const iaPanel = document.querySelectorAll('.tabpanel').find((n) => n.id === 'pan
 check(!!iaPanel && iaPanel.classList.contains('is-active'),
   'the analysis tab did not open its panel');
 document.getElementById('ia-run').click();
-const iaStatus = document.getElementById('ia-status').textContent;
-check(iaStatus.indexOf('WebGPU') >= 0,
-  'the analysis did not refuse without WebGPU: ' + JSON.stringify(iaStatus));
+const iaStatusNode = document.getElementById('ia-status');
+check((iaStatusNode.textContent || '').indexOf('WebGPU') >= 0,
+  'the analysis did not refuse without WebGPU: ' + JSON.stringify(iaStatusNode.textContent));
+check(iaStatusNode.classList.contains('is-error'),
+  'the refusal is not painted as an error');
 check(document.getElementById('ia-run').disabled === false,
   'the analysis button stayed disabled after the refusal');
+// A refusal is not a wait: nothing may still look busy after it.
+check(document.getElementById('ia-spinner').hidden === true,
+  'the spinner stayed visible after the refusal');
+check(document.getElementById('ia-progress').hidden === true,
+  'the download bar showed without a download');
+check(!document.getElementById('ia-out').classList.contains('is-streaming'),
+  'the streaming caret was left behind after the refusal');
+// The two rewrite actions are refused the same way, and the translate button
+// already names the language it would translate to.
+check(document.getElementById('ia-optimize').disabled === false,
+  'the optimize button stayed disabled after the refusal');
+check(document.getElementById('ia-translate').disabled === false,
+  'the translate button stayed disabled after the refusal');
+check((document.getElementById('ia-translate').textContent || '').indexOf('anglais') >= 0,
+  'the translate button does not name its target: ' +
+    JSON.stringify(document.getElementById('ia-translate').textContent));
 if (reportTab) reportTab.click(); // leave the editor on a panel the rest reads
 
 check(document.getElementById('name-field').value === 'Jeanne Rousseau',

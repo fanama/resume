@@ -129,14 +129,29 @@
     <!--
       The analysis panel is the one panel the server has no answer for: the
       review is written by a small model that runs in the browser itself, on
-      WebGPU, so the resume never leaves the machine. The engine and its 1.4 Go
-      of weights are fetched the first time the button is pressed, never on
-      load; analysis.js holds the model record and the prompt.
+      WebGPU, so the resume never leaves the machine — and so do its rewriting
+      and its translation, which the two other buttons trigger. The engine and
+      its 1.4 Go of weights are fetched the first time a button is pressed,
+      never on load; analysis.js holds the model record, the prompts, and the
+      rule that nothing reaches the editor without /api/parse agreeing with it.
     -->
     <div class="tabpanel" id="panel-ia" role="tabpanel">
       <div class="ia-controls">
         <button type="button" id="ia-run">Analyser le CV</button>
+        <button type="button" id="ia-optimize">Optimiser le contenu</button>
+        <button type="button" id="ia-translate">Traduire le CV</button>
+        <span class="ia-spinner" id="ia-spinner" hidden aria-hidden="true"></span>
         <span id="ia-status" class="muted" role="status" aria-live="polite"></span>
+      </div>
+      <!--
+        The bar only appears while the model is being downloaded — the one
+        phase that lasts long enough to need one. Its width never comes from a
+        style attribute: the CSP forbids inline style, so the value is the
+        native value of <progress>.
+      -->
+      <div class="ia-progress" id="ia-progress" hidden>
+        <progress id="ia-bar" max="100" value="0"></progress>
+        <span class="muted ia-pct" id="ia-pct">0 %</span>
       </div>
       <p class="empty" id="ia-note">Analyse locale avec un modèle MiniCPM exécuté par WebGPU dans ce navigateur : le CV ne quitte jamais la machine. Premier lancement : téléchargement d’environ 1,4 Go, mis en cache ensuite.</p>
       <div id="ia-out" class="plaintext" hidden></div>

@@ -74,7 +74,8 @@ func TestPageServesTheShell(t *testing.T) {
 		`<script src="/static/htmx.min.js"`, `<script src="/static/analysis.js"`,
 		`id="schema-target"`, `id="data"`,
 		`hx-post="/api/preview"`, `hx-post="/api/lint"`, `hx-post="/api/text"`, `hx-post="/api/tex"`,
-		`data-tab="ia"`, `id="ia-run"`, `id="ia-out"`,
+		`data-tab="ia"`, `id="ia-run"`, `id="ia-out"`, `id="ia-spinner"`, `id="ia-bar"`,
+		`id="ia-optimize"`, `id="ia-translate"`,
 		`href="/api/style.css?accent=1F3864`,
 	} {
 		if !strings.Contains(body, want) {
