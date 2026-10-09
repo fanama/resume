@@ -1,0 +1,7 @@
+{{/*
+  The LaTeX view is the source the "Télécharger LaTeX" button saves, shown
+  where it can be read while typing. It goes through html/template rather than
+  being injected as raw text: the resume is browser input, and a raw injection
+  would be live HTML.
+*/}}
+<pre class="plaintext">{{.Source}}</pre>

@@ -62,6 +62,7 @@
       <button type="button" role="tab" class="tab is-active" data-tab="preview" aria-selected="true">Aperçu</button>
       <button type="button" role="tab" class="tab" data-tab="report" aria-selected="false">Diagnostic</button>
       <button type="button" role="tab" class="tab" data-tab="text" aria-selected="false">Texte brut</button>
+      <button type="button" role="tab" class="tab" data-tab="tex" aria-selected="false">LaTeX</button>
     </nav>
 
     <div class="tabpanel is-active" id="panel-preview" role="tabpanel">
@@ -103,6 +104,23 @@
            hx-swap="innerHTML"
            hx-include="#cv">
         <p class="empty">L’ordre de lecture qu’un parser extrait apparaît ici.</p>
+      </div>
+    </div>
+
+    <!--
+      The LaTeX source is the same file the download button saves, shown where
+      it can be read. It is a fragment like the two panels above: htmx never
+      swaps a 4xx body, so a broken draft has to answer 200 with the message
+      inside, or the panel would go silently blank.
+    -->
+    <div class="tabpanel" id="panel-tex" role="tabpanel">
+      <div id="texsource"
+           hx-post="/api/tex"
+           hx-trigger="cv:tex from:body"
+           hx-sync="this:replace"
+           hx-swap="innerHTML"
+           hx-include="#cv">
+        <p class="empty">La source LaTeX apparaît ici.</p>
       </div>
     </div>
 

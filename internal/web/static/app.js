@@ -660,7 +660,7 @@ function buildSingleton(section, data, onChange) {
 // diagnostic and a plain text panel sitting hidden under the active tab.
 // page.html gives each panel its own trigger; the panels that are not asked
 // for here are refreshed when their tab is selected.
-const PANEL_EVENTS = { preview: 'cv:preview', report: 'cv:report', text: 'cv:text' };
+const PANEL_EVENTS = { preview: 'cv:preview', report: 'cv:report', text: 'cv:text', tex: 'cv:tex' };
 
 /** The output panel the tabs have selected, the one any refresh targets. */
 function activePanel() {

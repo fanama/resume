@@ -70,7 +70,7 @@ func TestPageServesTheShell(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{`<script src="/static/htmx.min.js"`, `id="schema-target"`, `id="data"`, `hx-post="/api/preview"`, `hx-post="/api/lint"`, `hx-post="/api/text"`, `href="/api/style.css?accent=1F3864`} {
+	for _, want := range []string{`<script src="/static/htmx.min.js"`, `id="schema-target"`, `id="data"`, `hx-post="/api/preview"`, `hx-post="/api/lint"`, `hx-post="/api/text"`, `hx-post="/api/tex"`, `href="/api/style.css?accent=1F3864`} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page is missing %q", want)
 		}
@@ -486,6 +486,54 @@ func TestParseValidatesAndNormalizes(t *testing.T) {
 	rec = post(t, s, "/api/parse", "")
 	if rec.Code != http.StatusBadRequest {
 		t.Errorf("an empty body returned %d, want 400", rec.Code)
+	}
+}
+
+// TestTexPanelShowsTheSource pins the LaTeX view of the editor: a fragment
+// the panel can swap, escaped because the resume is browser input, and the raw
+// source for a script. The bytes are the ones /api/render/tex downloads.
+func TestTexPanelShowsTheSource(t *testing.T) {
+	const payload = `{"name":"<script>alert(1)</script>","contact":{"city":"Paris"},
+	  "summary":"100% & more"}`
+
+	rec := post(t, testServer(t), "/api/tex", payload)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d: %s", rec.Code, rec.Body)
+	}
+	body := rec.Body.String()
+	for _, want := range []string{`\documentclass`, `\begin{document}`, `100\% \&amp; more`} {
+		if !strings.Contains(body, want) {
+			t.Errorf("the fragment is missing %q:\n%s", want, body)
+		}
+	}
+	// The panel is swapped as HTML: the name must arrive escaped, never live.
+	if strings.Contains(body, "<script") {
+		t.Errorf("the panel injects the resume as HTML: %s", body)
+	}
+	if !strings.Contains(body, "&lt;script&gt;") {
+		t.Errorf("the name was dropped instead of escaped: %s", body)
+	}
+
+	// The raw form answers the source itself, announced as LaTeX.
+	req := httptest.NewRequest(http.MethodPost, "/api/tex?format=json", strings.NewReader(payload))
+	req.Header.Set("Content-Type", "application/json")
+	rec = httptest.NewRecorder()
+	testServer(t).Handler().ServeHTTP(rec, req)
+	if ct := rec.Header().Get("Content-Type"); ct != "text/x-tex; charset=utf-8" {
+		t.Errorf("Content-Type = %q, want text/x-tex", ct)
+	}
+	if !strings.Contains(rec.Body.String(), `\documentclass`) {
+		t.Errorf("the raw answer is not the LaTeX source: %.120s", rec.Body.String())
+	}
+
+	// A broken draft answers 200 with the message inside, like every panel:
+	// htmx does not swap a 4xx body, and a silent panel is a silent failure.
+	rec = post(t, testServer(t), "/api/tex", `{"name":"Jean","experiance":[]}`)
+	if rec.Code != http.StatusOK {
+		t.Errorf("a broken draft returned %d, want 200 so the panel can show why", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "experiance") {
+		t.Errorf("the panel does not name the offending field: %s", rec.Body)
 	}
 }
 

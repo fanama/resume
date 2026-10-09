@@ -98,7 +98,7 @@ func New(opts Options) (*Server, error) {
 	}
 	tmpl, err := template.New("atscv").ParseFS(templateFS,
 		"templates/home.html", "templates/page.html", "templates/preview.html",
-		"templates/report.html", "templates/text.html")
+		"templates/report.html", "templates/text.html", "templates/tex.html")
 	if err != nil {
 		return nil, fmt.Errorf("templates: %w", err)
 	}
@@ -159,6 +159,7 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/lint", s.handleLint)
 	s.mux.HandleFunc("POST /api/preview", s.handlePreview)
 	s.mux.HandleFunc("POST /api/text", s.handleText)
+	s.mux.HandleFunc("POST /api/tex", s.handleTex)
 	s.mux.HandleFunc("POST /api/render/{format}", s.handleRender)
 	s.mux.HandleFunc("GET /api/schema", s.handleSchema)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {

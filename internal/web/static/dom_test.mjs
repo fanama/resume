@@ -102,7 +102,7 @@ for (const id of ids) {
   if (id === 'data' || id === 'name-field' || id === 'ascii-field') node.value = '';
   document.body.appendChild(node);
 }
-for (const tab of ['preview', 'report', 'text']) {
+for (const tab of ['preview', 'report', 'text', 'tex']) {
   const t = new Node('button'); t.className = 'tab'; t.setAttribute('data-tab', tab);
   const p = new Node('div'); p.id = 'panel-' + tab; p.className = 'tabpanel';
   document.body.appendChild(t); document.body.appendChild(p);
@@ -379,7 +379,7 @@ check(store4.sessions.length === 1 && store4.current === firstId, 'the session w
 /* 7. an edit is drawn while it is written: a keystroke asks at once, a burst
       asks once for the window, and the last keystroke is never dropped */
 const refreshes = [];
-for (const name of ['cv:preview', 'cv:report', 'cv:text']) {
+for (const name of ['cv:preview', 'cv:report', 'cv:text', 'cv:tex']) {
   document.body.addEventListener(name, () => refreshes.push(name));
 }
 await new Promise((r) => setTimeout(r, 150)); // the refresh window is open again
@@ -411,6 +411,16 @@ refreshes.length = 0;
 reportTab.click();
 check(refreshes.length === 0,
   'clicking the tab already open asked again: ' + refreshes.join(', '));
+
+/* 7c. the LaTeX panel is asked for when its tab is opened, and only then */
+const texTab = document.querySelectorAll('.tab').find((b) => b.dataset.tab === 'tex');
+check(!!texTab, 'no LaTeX tab in the editor');
+refreshes.length = 0;
+if (texTab) texTab.click();
+check(refreshes.join(',') === 'cv:tex',
+  'opening the LaTeX tab asked for [' + refreshes.join(', ') + '], want cv:tex');
+refreshes.length = 0;
+if (reportTab) reportTab.click(); // leave the editor on a panel the rest reads
 
 check(document.getElementById('name-field').value === 'Jeanne Rousseau',
   'the name sent to the renderer is not the draft name: ' + document.getElementById('name-field').value);

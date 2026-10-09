@@ -226,6 +226,37 @@ func (s *Server) handleText(w http.ResponseWriter, r *http.Request) {
 	s.render(w, r, "text", map[string]any{"Text": txt.Render(in.layout), "Lang": in.lang})
 }
 
+// handleTex returns the LaTeX source of the resume, for the "LaTeX" panel of
+// the editor. Like the text panel it is a fragment and not the download: the
+// source is read while typing, and the bytes it shows are the ones
+// /api/render/tex saves, built from the same options so the two cannot drift.
+func (s *Server) handleTex(w http.ResponseWriter, r *http.Request) {
+	in, err := s.readInput(w, r)
+	if err != nil {
+		s.fail(w, r, err)
+		return
+	}
+	source := tex.Render(in.layout, s.texOptions(in))
+	if wantsJSON(r) {
+		w.Header().Set("Content-Type", "text/x-tex; charset=utf-8")
+		w.Header().Set("Cache-Control", "no-store")
+		_, _ = io.WriteString(w, source)
+		return
+	}
+	s.render(w, r, "tex", map[string]any{"Source": source})
+}
+
+// texOptions builds the LaTeX options of both the panel and the download, so
+// what the editor shows and what it saves are the same file.
+func (s *Server) texOptions(in input) tex.Options {
+	return tex.Options{
+		Lang:         in.layout.OptsLang(),
+		SectionRules: s.opts.SectionRules,
+		Accent:       s.opts.Accent,
+		FontSize:     s.opts.FontSize,
+	}
+}
+
 // reportPayload is the JSON shape of a lint report. The structures are flattened
 // because a JSON consumer wants the score and the findings, not the formatting
 // of the terminal report.
@@ -365,13 +396,7 @@ func (s *Server) renderBytes(format string, in input) ([]byte, string, error) {
 		// The LaTeX source is written in pure Go: the server never runs an
 		// external tool, and the file it answers with is the one the CLI
 		// would have written.
-		opts := tex.Options{
-			Lang:         in.layout.OptsLang(),
-			SectionRules: s.opts.SectionRules,
-			Accent:       s.opts.Accent,
-			FontSize:     s.opts.FontSize,
-		}
-		return []byte(tex.Render(in.layout, opts)), "text/x-tex; charset=utf-8", nil
+		return []byte(tex.Render(in.layout, s.texOptions(in))), "text/x-tex; charset=utf-8", nil
 	default:
 		return nil, "", fmt.Errorf("unknown format %q, want docx, pdf, adoc, txt or tex", format)
 	}

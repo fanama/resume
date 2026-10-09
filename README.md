@@ -160,8 +160,8 @@ d'accueil ne lit aucun CV et n'appelle aucun renderer.
 
 `/editor` est un formulaire complet
 construit à partir du schéma publié par le serveur, un aperçu qui se met à jour
-à la frappe, le rapport ATS, le texte brut que l'ATS extrait, et cinq
-téléchargements.
+à la frappe, le rapport ATS, le texte brut que l'ATS extrait, la source LaTeX,
+et cinq téléchargements.
 
 L'aperçu est redessiné **pendant** la frappe, pas à l'arrêt : la première
 modification d'une rafale part immédiatement, les suivantes attendent une fenêtre
@@ -204,6 +204,7 @@ est plafonné à 2 Mio.
 | `POST /api/lint` | le rapport en fragment HTML, ou en JSON avec `?format=json` |
 | `POST /api/preview` | l'aperçu, rendu par le même `layout` que le PDF |
 | `POST /api/text` | le texte brut, échappé, ou en JSON avec `?format=json` |
+| `POST /api/tex` | la source LaTeX en fragment HTML, ou le fichier brut en `text/x-tex` avec `?format=json` |
 | `POST /api/render/{docx,pdf,adoc,txt,tex}` | le fichier, en téléchargement |
 | `GET /api/style.css` | l'accent et le corps, en CSS, pour une CSP stricte |
 | `GET /api/demo` | le CV de démonstration, ou `404` si aucun n'est configuré |
@@ -211,10 +212,10 @@ est plafonné à 2 Mio.
 | `GET /editor` | l'éditeur |
 | `GET /healthz` | `ok` |
 
-**Les deux formes d'erreur ne sont pas les mêmes.** Les trois panneaux de
-l'éditeur (`preview`, `lint`, `text`) répondent `200` même en cas d'erreur, avec
-le message dans le fragment : htmx n'injecte pas un corps `4xx`, donc un `400`
-y laisserait un panneau vide et muet. Un rendu, lui, n'est jamais un fragment —
+**Les deux formes d'erreur ne sont pas les mêmes.** Les quatre panneaux de
+l'éditeur (`preview`, `lint`, `text`, `tex`) répondent `200` même en cas
+d'erreur, avec le message dans le fragment : htmx n'injecte pas un corps `4xx`,
+donc un `400` y laisserait un panneau vide et muet. Un rendu, lui, n'est jamais un fragment —
 son appelant est un `fetch()` qui teste `res.ok`, ou un `curl -o fichier` — donc
 `/api/render/*` répond toujours `400` en JSON. C'est ce qui empêche un échec de
 s'écrire sur le disque sous le nom du CV : sans cela, un brouillon mal formé
