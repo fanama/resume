@@ -102,7 +102,7 @@ for (const id of ids) {
   if (id === 'data' || id === 'name-field' || id === 'ascii-field') node.value = '';
   document.body.appendChild(node);
 }
-for (const tab of ['preview', 'report', 'text', 'tex']) {
+for (const tab of ['preview', 'report', 'text', 'tex', 'ia']) {
   const t = new Node('button'); t.className = 'tab'; t.setAttribute('data-tab', tab);
   const p = new Node('div'); p.id = 'panel-' + tab; p.className = 'tabpanel';
   document.body.appendChild(t); document.body.appendChild(p);
@@ -179,6 +179,9 @@ storage.set('atscv.sessions.v1', JSON.stringify({
 
 const src = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
 new Function(src)();
+// analysis.js is a deferred script on the real page; here it runs as soon as
+// the skeleton above, which is all its wiring asks for.
+new Function(readFileSync(new URL('./analysis.js', import.meta.url), 'utf8'))();
 for (const fn of documentListeners.DOMContentLoaded || []) await fn();
 runFrames();
 
@@ -420,6 +423,28 @@ if (texTab) texTab.click();
 check(refreshes.join(',') === 'cv:tex',
   'opening the LaTeX tab asked for [' + refreshes.join(', ') + '], want cv:tex');
 refreshes.length = 0;
+if (reportTab) reportTab.click(); // leave the editor on a panel the rest reads
+
+/* 7d. the analysis panel is the one panel no server event answers: opening
+      its tab switches to it and asks for nothing, and its button refuses to
+      run where there is no WebGPU */
+const iaTab = document.querySelectorAll('.tab').find((b) => b.dataset.tab === 'ia');
+check(!!iaTab, 'no analysis tab in the editor');
+refreshes.length = 0;
+if (iaTab) iaTab.click();
+check(refreshes.length === 0,
+  'opening the analysis asked the server for [' + refreshes.join(', ') + '], want nothing');
+// The tabpanels are the nodes wireTabs toggles: the ids loop above has
+// already built a plain div for every id on the real page.
+const iaPanel = document.querySelectorAll('.tabpanel').find((n) => n.id === 'panel-ia');
+check(!!iaPanel && iaPanel.classList.contains('is-active'),
+  'the analysis tab did not open its panel');
+document.getElementById('ia-run').click();
+const iaStatus = document.getElementById('ia-status').textContent;
+check(iaStatus.indexOf('WebGPU') >= 0,
+  'the analysis did not refuse without WebGPU: ' + JSON.stringify(iaStatus));
+check(document.getElementById('ia-run').disabled === false,
+  'the analysis button stayed disabled after the refusal');
 if (reportTab) reportTab.click(); // leave the editor on a panel the rest reads
 
 check(document.getElementById('name-field').value === 'Jeanne Rousseau',

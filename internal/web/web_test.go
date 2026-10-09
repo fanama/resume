@@ -70,7 +70,13 @@ func TestPageServesTheShell(t *testing.T) {
 		t.Fatalf("status = %d", rec.Code)
 	}
 	body := rec.Body.String()
-	for _, want := range []string{`<script src="/static/htmx.min.js"`, `id="schema-target"`, `id="data"`, `hx-post="/api/preview"`, `hx-post="/api/lint"`, `hx-post="/api/text"`, `hx-post="/api/tex"`, `href="/api/style.css?accent=1F3864`} {
+	for _, want := range []string{
+		`<script src="/static/htmx.min.js"`, `<script src="/static/analysis.js"`,
+		`id="schema-target"`, `id="data"`,
+		`hx-post="/api/preview"`, `hx-post="/api/lint"`, `hx-post="/api/text"`, `hx-post="/api/tex"`,
+		`data-tab="ia"`, `id="ia-run"`, `id="ia-out"`,
+		`href="/api/style.css?accent=1F3864`,
+	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page is missing %q", want)
 		}
@@ -168,11 +174,19 @@ func TestSecurityHeaders(t *testing.T) {
 			t.Errorf("the policy is missing %q: %s", directive, csp)
 		}
 	}
+	// The analysis panel is the one thing allowed to leave 'self', and only
+	// for the WebAssembly it compiles and the model files it downloads: the
+	// resume itself still has nowhere to go.
+	for _, directive := range []string{"'wasm-unsafe-eval'", "https://huggingface.co", "https://*.hf.co"} {
+		if !strings.Contains(csp, directive) {
+			t.Errorf("the policy is missing %q: %s", directive, csp)
+		}
+	}
 }
 
 func TestStaticFilesAreEmbeddedInTheBinary(t *testing.T) {
 	s := testServer(t)
-	for _, name := range []string{"htmx.min.js", "app.js", "app.css"} {
+	for _, name := range []string{"htmx.min.js", "app.js", "app.css", "analysis.js", "vendor/webllm.js"} {
 		rec := get(t, s, "/static/"+name)
 		if rec.Code != http.StatusOK {
 			t.Errorf("GET /static/%s = %d", name, rec.Code)
@@ -186,6 +200,28 @@ func TestStaticFilesAreEmbeddedInTheBinary(t *testing.T) {
 		}
 		if rec.Header().Get("ETag") == "" {
 			t.Errorf("/static/%s has no ETag, so a browser cannot tell it is stale", name)
+		}
+	}
+}
+
+// TestTheAnalysisImportsWhatTheBinaryServes is the drift guard for the AI
+// panel: analysis.js fetches its heavy half — the WebLLM library — by URL, but
+// only at the moment the reader asks for an analysis, so a path that stopped
+// resolving would be noticed in a browser and nowhere else.
+func TestTheAnalysisImportsWhatTheBinaryServes(t *testing.T) {
+	s := testServer(t)
+	rec := get(t, s, "/static/analysis.js")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /static/analysis.js = %d", rec.Code)
+	}
+	refs := regexp.MustCompile(`'/static/[^']+'`).FindAllString(rec.Body.String(), -1)
+	if len(refs) == 0 {
+		t.Fatal("analysis.js references no static file")
+	}
+	for _, ref := range refs {
+		path := strings.Trim(ref, "'")
+		if served := get(t, s, path); served.Code != http.StatusOK {
+			t.Errorf("analysis.js imports %s, which answers %d", path, served.Code)
 		}
 	}
 }

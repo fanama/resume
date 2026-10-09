@@ -116,6 +116,13 @@ func (s *Server) Handler() http.Handler {
 // securityHeaders sets a strict policy. The editor loads nothing but its own
 // files, so everything can be denied by default; a resume is personal data and
 // has no reason to reach a third party.
+//
+// Two entries are wider than 'self', both for the opt-in AI analysis panel:
+// 'wasm-unsafe-eval' lets the browser compile the WebGPU WebAssembly of the
+// model it runs locally, and the huggingface.co sources are where that model's
+// weights are downloaded from. Neither endpoint ever receives the resume: the
+// inference happens in the browser, and Referrer-Policy keeps the download
+// from carrying anything along.
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -124,10 +131,10 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 		h.Set("X-Frame-Options", "DENY")
 		h.Set("Content-Security-Policy", strings.Join([]string{
 			"default-src 'self'",
-			"script-src 'self'",
+			"script-src 'self' 'wasm-unsafe-eval'",
 			"style-src 'self'",
 			"img-src 'self' data:",
-			"connect-src 'self'",
+			"connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co",
 			"form-action 'self'",
 			"frame-ancestors 'none'",
 			"base-uri 'none'",

@@ -512,6 +512,11 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   color: var(--dim);
 }
 
+/* ---- the analysis panel ---- */
+
+.ia-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+#ia-out { margin-top: 12px; }
+
 /* ---- the report ---- */
 
 .score { display: flex; align-items: center; gap: 18px; margin-bottom: 14px; }

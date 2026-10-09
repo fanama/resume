@@ -161,7 +161,7 @@ d'accueil ne lit aucun CV et n'appelle aucun renderer.
 `/editor` est un formulaire complet
 construit à partir du schéma publié par le serveur, un aperçu qui se met à jour
 à la frappe, le rapport ATS, le texte brut que l'ATS extrait, la source LaTeX,
-et cinq téléchargements.
+une analyse de contenu relue par un modèle local, et cinq téléchargements.
 
 L'aperçu est redessiné **pendant** la frappe, pas à l'arrêt : la première
 modification d'une rafale part immédiatement, les suivantes attendent une fenêtre
@@ -176,7 +176,8 @@ le CV à rendre et ne le garde pas. Effacer les données du site efface les
 brouillons : l'export JSON est la seule sauvegarde durable.
 
 htmx est embarqué dans le binaire (`internal/web/static/htmx.min.js`), donc
-l'éditeur fonctionne sans réseau.
+l'éditeur fonctionne sans réseau — jusqu'à l'analyse IA, qui va chercher son
+modèle la première fois (voir plus bas).
 
 ### Options de `serve`
 
@@ -263,7 +264,9 @@ est défensif : le modèle JSON est strict (un champ inconnu est une erreur, pas
 un champ perdu), les chaînes sont échappées par `html/template` avant d'entrer
 dans l'aperçu, les couleurs passent par le même validateur que l'option
 `-accent`, et la politique de sécurité interdit tout script et tout style
-inline, tout chargement distant et tout framing.
+inline, tout chargement distant et tout framing. La seule exception est le
+téléchargement du modèle d'analyse, demandé par le lecteur : il transporte des
+fichiers de modèle, jamais un CV.
 
 Ce que le serveur ne fait pas, et qu'il faut savoir : la Tierce partie n'a
 aucun moyen de distinguer un CV d'un autre. Les brouillons vivent dans le
@@ -493,6 +496,12 @@ une date réduite à l'année, qu'une frappe déclenche l'aperçu immédiatement
 qu'une rafale n'en déclenche qu'une, et que le téléchargement porte le bon
 brouillon. Il est ignoré si `node` est absent.
 
+Le même test charge aussi `analysis.js` et vérifie que l'onglet « Analyse IA »
+n'appelle pas le serveur à son ouverture et que son bouton refuse en l'absence
+de WebGPU ; un test du serveur vérifie que chaque fichier qu'`analysis.js`
+importe est bien servi par le binaire, et un autre que les deux entrées élargies
+de la politique de sécurité y figurent.
+
 Le `.docx` produit est reproductible bit à bit, ce qui permet de le versionner.
 
 ## Rendu LaTeX
@@ -532,3 +541,32 @@ asciidoctor -b pdf -o dist/resume.fr.pdf dist/resume.fr.adoc
 L'ancien outillage (`resume.adoc`, `components/*.adoc` et ses rendus) a été
 supprimé : les données vivent désormais dans `data/resume.*.json`. L'historique
 git les conserve, `git show HEAD:components/skills.adoc` par exemple.
+
+## Analyse IA
+
+L'onglet « Analyse IA » de l'éditeur relit le CV et propose des améliorations —
+points forts, problèmes, réécritures prêtes à coller — avec un modèle
+**MiniCPM5-2B** qui tourne dans le navigateur lui-même, via WebLLM et WebGPU.
+Le CV ne quitte jamais la page : aucune requête ne le transporte.
+
+Trois faits à connaître :
+
+- **WebGPU est requis** (Chrome/Edge 113+ ou Safari récent). Sans lui, le
+  bouton le dit et n'exécute rien.
+- **Le premier lancement télécharge le modèle** : les poids (environ 1,4 Go)
+  viennent de Hugging Face et sont mis en cache par le navigateur, une seule
+  fois. Le moteur lui-même (6,6 Mo) est vendorisé dans
+  `internal/web/static/vendor/webllm.js`, au même titre que pdf.js, et n'est
+  chargé qu'au clic : aucune dépendance au build, aucune requête au chargement
+  de la page.
+- **Deux entrées de la CSP sont plus larges que `'self'`** : `'wasm-unsafe-eval'`
+  pour compiler le WebAssembly du modèle, et les sources Hugging Face où les
+  poids vivent. C'est la seule chose que l'application laisse sortir, et le CV
+  ne passe pas par là.
+
+Le modèle (`vs4vijay/MiniCPM5-2B-MLC`, quantification q4f16_1) et le prompt
+sont déclarés dans `internal/web/static/analysis.js`. Le panneau envoie au
+modèle exactement ce que la vue « Texte brut » montre — l'ordre de lecture
+qu'un parseur extrait — et la réponse est rendue en `textContent`, jamais en
+HTML. Sans WebGPU, avec un CV invalide ou hors ligne, le bouton explique
+l'échec au lieu de faire semblant.

@@ -8,6 +8,7 @@
 <link rel="stylesheet" id="accent" href="/api/style.css?accent={{.Accent}}&amp;size={{.Body}}">
 <script src="/static/htmx.min.js" defer></script>
 <script src="/static/app.js" defer></script>
+<script src="/static/analysis.js" defer></script>
 </head>
 <body>
 <header class="topbar">
@@ -63,6 +64,7 @@
       <button type="button" role="tab" class="tab" data-tab="report" aria-selected="false">Diagnostic</button>
       <button type="button" role="tab" class="tab" data-tab="text" aria-selected="false">Texte brut</button>
       <button type="button" role="tab" class="tab" data-tab="tex" aria-selected="false">LaTeX</button>
+      <button type="button" role="tab" class="tab" data-tab="ia" aria-selected="false">Analyse IA</button>
     </nav>
 
     <div class="tabpanel is-active" id="panel-preview" role="tabpanel">
@@ -122,6 +124,22 @@
            hx-include="#cv">
         <p class="empty">La source LaTeX apparaît ici.</p>
       </div>
+    </div>
+
+    <!--
+      The analysis panel is the one panel the server has no answer for: the
+      review is written by a small model that runs in the browser itself, on
+      WebGPU, so the resume never leaves the machine. The engine and its 1.4 Go
+      of weights are fetched the first time the button is pressed, never on
+      load; analysis.js holds the model record and the prompt.
+    -->
+    <div class="tabpanel" id="panel-ia" role="tabpanel">
+      <div class="ia-controls">
+        <button type="button" id="ia-run">Analyser le CV</button>
+        <span id="ia-status" class="muted" role="status" aria-live="polite"></span>
+      </div>
+      <p class="empty" id="ia-note">Analyse locale avec un modèle MiniCPM exécuté par WebGPU dans ce navigateur : le CV ne quitte jamais la machine. Premier lancement : téléchargement d’environ 1,4 Go, mis en cache ensuite.</p>
+      <div id="ia-out" class="plaintext" hidden></div>
     </div>
 
     <div class="downloads">
