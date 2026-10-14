@@ -9,11 +9,14 @@
    cache for the second. The resume is personal data, so the inference happens
    here, in the page — the only outbound requests are the model's own files,
    which is what the Hugging Face sources in the Content-Security-Policy are
-   for; the resume itself is never sent anywhere. And nothing the model writes
-   is trusted: its answer reaches textContent and never innerHTML, and its JSON
-   reaches the editor only after POST /api/parse has accepted and normalized
-   it — the same gate an import goes through. Whatever passes opens a new
-   session, so the draft it was written from stays beside it, intact.
+   for; the resume itself is never sent anywhere — unless the reader asks for
+   it: an OpenAI-compatible provider typed into the panel (base URL, key,
+   model) is then called directly, and the text only goes there. And nothing
+   the model writes is trusted: its answer reaches textContent and never
+   innerHTML, and its JSON reaches the editor only after POST /api/parse has
+   accepted and normalized it — the same gate an import goes through. Whatever
+   passes opens a new session, so the draft it was written from stays beside
+   it, intact.
 
    Every state the reader waits through has a visible sign: a spinner, a
    measured download bar, a breathing status, a caret at the end of the
@@ -54,6 +57,14 @@
   const jobUrl = document.getElementById('ia-url');
   const offerLine = document.getElementById('ia-offer');
   const offerClear = document.getElementById('ia-offer-clear');
+  // The provider the reader owns: base URL, model, key. Typed once, kept in
+  // this browser like the offer, used by every run until it is retired.
+  const provUrl = document.getElementById('ia-provider-url');
+  const provModel = document.getElementById('ia-provider-model');
+  const provKey = document.getElementById('ia-provider-key');
+  const provSave = document.getElementById('ia-provider-save');
+  const provClear = document.getElementById('ia-provider-clear');
+  const note = document.getElementById('ia-note');
   const statusNode = document.getElementById('ia-status');
   const out = document.getElementById('ia-out');
   const dataField = document.getElementById('data');
@@ -65,13 +76,147 @@
   // page — they are today — and the panel must survive that: a missing
   // optional button removes a feature, it must not leave the others dead.
   // The elements every listener needs are the required ones, never optional.
+  // The provider block is not among them: a page without it just loses the
+  // custom provider and keeps the local model, the way it loses optimize
+  // without its button.
   const buttons = [run, optimize, translate, jobRun].filter(Boolean);
   if (!run || !statusNode || !out || !dataField ||
       !spinner || !progress || !bar || !pct ||
       !jobRun || !jobUrl || !offerLine || !offerClear) return;
 
-  // The engine survives between two runs: reloading it would re-read the
-  // cached weights, and the first load is the expensive one.
+  /* ------------------------------------------------------------------ */
+  /* The custom provider. An OpenAI-compatible endpoint the reader names: */
+  /* base URL, model, key. Stored behind the drafts, used by every run    */
+  /* until it is retired — the local engine is the default, the provider  */
+  /* is the exception the reader asked for, and the resume only ever      */
+  /* travels where its owner typed a URL.                                 */
+  /* ------------------------------------------------------------------ */
+  const LLM_KEY = 'atscv.llm.v1';
+  let llm = null; // { baseUrl, apiKey, model } while a provider is active
+
+  const loadLLM = () => {
+    try {
+      const raw = localStorage.getItem(LLM_KEY);
+      if (!raw) return null;
+      const cfg = JSON.parse(raw);
+      if (!cfg || !/^https?:\/\//i.test(String(cfg.baseUrl || '')) || !String(cfg.model || '').trim()) {
+        return null; // a broken record is a record without a provider
+      }
+      return { baseUrl: String(cfg.baseUrl), apiKey: String(cfg.apiKey || ''), model: String(cfg.model) };
+    } catch (e) {
+      return null;
+    }
+  };
+
+  const defaultNote = note ? note.textContent : '';
+
+  const renderProvider = () => {
+    llm = loadLLM();
+    if (!note) return;
+    if (llm) {
+      const host = String(llm.baseUrl).replace(/^https?:\/\//, '').split('/')[0];
+      note.textContent = label(
+        'Analyse par votre fournisseur « ' + llm.model + ' » sur ' + host +
+        ' : le CV lui est envoyé. Les trois champs sont gardés dans ce navigateur.',
+        'Analysis by your provider “' + llm.model + '” on ' + host +
+        ': the CV is sent to it. The three fields are kept in this browser.'
+      );
+      if (provUrl) provUrl.value = llm.baseUrl;
+      if (provModel) provModel.value = llm.model;
+      if (provKey) provKey.value = llm.apiKey;
+      if (provClear) provClear.hidden = false;
+    } else {
+      note.textContent = defaultNote;
+      if (provClear) provClear.hidden = true;
+    }
+  };
+
+  const saveProvider = () => {
+    const baseUrl = (provUrl.value || '').trim().replace(/\/+$/, '');
+    const model = (provModel.value || '').trim();
+    const apiKey = (provKey.value || '').trim();
+    if (!/^https?:\/\//i.test(baseUrl)) {
+      return status(label(
+        "L'URL du fournisseur doit commencer par http:// ou https://.",
+        'The provider URL must start with http:// or https://.'
+      ), 'error');
+    }
+    if (!model) {
+      return status(label(
+        'Indiquez le nom du modèle à interroger.',
+        'Name the model to query.'
+      ), 'error');
+    }
+    localStorage.setItem(LLM_KEY, JSON.stringify({ baseUrl, model, apiKey }));
+    renderProvider();
+    status(label('Fournisseur enregistré : ', 'Provider saved: ') + model);
+  };
+
+  const clearProvider = () => {
+    localStorage.removeItem(LLM_KEY);
+    renderProvider();
+    status(label('Retour au modèle local.', 'Back to the local model.'));
+  };
+
+  /* providerChat calls the endpoint the OpenAI clients call: the model, the
+     same conversation shape, the same sampling parameters the local engine
+     gets. It answers the streaming response, or an error that names the
+     status and the message the provider wrote in its body. */
+  const providerChat = async (messages, params) => {
+    status(label('Appel de ' + llm.model + '…', 'Calling ' + llm.model + '…'), 'waiting');
+    const headers = { 'Content-Type': 'application/json' };
+    if (llm.apiKey) headers.Authorization = 'Bearer ' + llm.apiKey;
+    const url = llm.baseUrl + '/chat/completions';
+    let res;
+    try {
+      res = await fetch(url, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ model: llm.model, messages, stream: true, ...params }),
+      });
+    } catch (err) {
+      // Un fetch qui jette meurt avant la moindre réponse : itinéraire bloqué
+      // par CORS — l'appel OPTIONS que le navigateur envoie avant le POST,
+      // car l'en-tête Authorization force la pré-demande — ne trouve rien
+      // pour le servir, ou l'origine ne figure pas dans
+      // Access-Control-Allow-Origin. curl n'en fait rien de tout cela : une
+      // ligne de commande réussit là où la page ne passe pas, et la console
+      // du navigateur nomme le motif exact.
+      throw new Error(
+        label(
+          "Le navigateur n'a pas atteint " + url + " — là où curl passe. Votre serveur doit répondre à la pré-demande OPTIONS (CORS) et envoyer Access-Control-Allow-Origin avant de relayer le POST d'une page ; la console du navigateur nomme le motif exact.",
+          'The browser could not reach ' + url + ' — where curl succeeds. Your server must answer the OPTIONS preflight (CORS) and send Access-Control-Allow-Origin before it relays a POST from a page; the browser console names the exact reason.'
+        )
+      );
+    }
+    if (!res.ok) {
+      let detail = '';
+      try {
+        const body = await res.json();
+        detail = (body && body.error && body.error.message) || (body && body.message) || '';
+      } catch (e) { /* some providers answer an error in plain text */ }
+      // Un 404 sans /v1 en bout de base est presque toujours une base à
+      // laquelle il manque le segment que curl avait : le conseil le porte.
+      const hint = res.status === 404 && !/\/v1\/?$/i.test(llm.baseUrl)
+        ? label(
+          " — essayez une base qui finit par /v1 : " + llm.baseUrl + '/v1',
+          " — try a base ending in /v1: " + llm.baseUrl + '/v1'
+        )
+        : '';
+      throw new Error(label('HTTP ' + res.status, 'HTTP ' + res.status) +
+        (detail ? ' — ' + detail : '') + hint);
+    }
+    if (!res.body || !res.body.getReader) {
+      throw new Error(label(
+        'Le fournisseur ne diffuse pas de flux : essayez un autre point de terminaison.',
+        'The provider does not stream: try another endpoint.'
+      ));
+    }
+    return res;
+  };
+
+  /* The engine survives between two runs: reloading it would re-read the
+     cached weights, and the first load is the expensive one. */
   let engine = null;
   let busy = false;
 
@@ -242,6 +387,48 @@
     return engine;
   };
 
+  /* sseDeltas reads the stream the OpenAI servers write: "data:" lines, the
+     deltas of the choices they carry, a [DONE] line at the end. Every
+     OpenAI-compatible provider has agreed on that shape, so one reader
+     covers them all — and every line the model writes here is content, in
+     the same shape the local engine reports its chunks in. */
+  const sseDeltas = async function* (res) {
+    const reader = res.body.getReader();
+    const decoder = new TextDecoder();
+    let buffer = '';
+    while (true) {
+      const { value, done } = await reader.read();
+      if (done) break;
+      buffer += decoder.decode(value, { stream: true });
+      let i;
+      while ((i = buffer.indexOf('\n')) >= 0) {
+        const line = buffer.slice(0, i).trim();
+        buffer = buffer.slice(i + 1);
+        if (!line.startsWith('data:')) continue;
+        const payload = line.slice(5).trim();
+        if (payload === '[DONE]')  return;
+        try {
+          const json = JSON.parse(payload);
+          const delta = json && json.choices && json.choices[0] && json.choices[0].delta;
+          if (delta && delta.content) yield delta;
+        } catch (e) { /* a partial line or a provider note: content is what matters */ }
+      }
+    }
+  };
+
+  /* startChat is the one door both actions walk through: the configured
+     provider when there is one, the local engine when there is not. It
+     answers an iterable of the same deltas either way, so the streaming
+     below is written once. */
+  const startChat = async (messages, params) => {
+    if (llm) {
+      const res = await providerChat(messages, params);
+      return sseDeltas(res);
+    }
+    const eng = await ensureEngine();
+    return eng.chat.completions.create({ messages, stream: true, ...params });
+  };
+
   /* applySession hands a validated resume to the editor the way an import
      does: a new session, then every step that decides what the next render
      shows. app.js owns all of it — this file only calls. */
@@ -361,8 +548,8 @@
   };
 
   const refusal = () => status(label(
-    'WebGPU indisponible : ce navigateur ne peut pas exécuter l\'analyse.',
-    'WebGPU is unavailable: this browser cannot run the analysis.'
+    'WebGPU indisponible : ce navigateur ne peut pas exécuter l\'analyse locale.',
+    'WebGPU is unavailable: this browser cannot run the local analysis.'
   ), 'error');
 
   const draftError = () => label(
@@ -385,7 +572,9 @@
     // did.
     let phase = 'text';
     try {
-      if (!hasWebGPU()) return refusal();
+      // WebGPU is the local engine's requirement, not the provider's: a
+      // provider configured is a page that works without it.
+      if (!llm && !hasWebGPU()) return refusal();
 
       spin(true);
       status(label('Lecture du CV…', 'Reading the CV…'), 'waiting');
@@ -403,24 +592,18 @@
         return status(label('Le CV est vide.', 'The CV is empty.'), 'error');
       }
 
-      phase = 'engine';
-      const eng = await ensureEngine();
-
       phase = 'chat';
       spin(true);
       status(label('Analyse en cours…', 'Analysing…'), 'waiting');
       showOut('');
       const started = Date.now();
-      const stream = await eng.chat.completions.create({
-        messages: reviewMessages(text, loadOffer()),
-        stream: true,
+      const stream = await startChat(reviewMessages(text, loadOffer()), {
         temperature: 0.7,
         top_p: 0.95,
         max_tokens: 700,
       });
       let answer = '';
-      for await (const chunk of stream) {
-        const delta = chunk && chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
+      for await (const delta of stream) {
         if (delta && delta.content) {
           answer += delta.content;
           out.textContent = answer;
@@ -462,7 +645,9 @@
     status('');
     let phase = 'validate';
     try {
-      if (!hasWebGPU()) return refusal();
+      // Same choice as the review: the provider speaks whatever HTTP the
+      // browser speaks, the local engine is the one that needs WebGPU.
+      if (!llm && !hasWebGPU()) return refusal();
 
       spin(true);
       status(label('Lecture du CV…', 'Reading the CV…'), 'waiting');
@@ -471,9 +656,6 @@
       const base = parsed.resume;
       const target = String(base.lang) === 'en' ? 'fr' : 'en';
 
-      phase = 'engine';
-      const eng = await ensureEngine();
-
       phase = 'chat';
       spin(true);
       status(mode === 'translate'
@@ -481,16 +663,13 @@
           'Translating into ' + (target === 'en' ? 'English' : 'French') + '…')
         : label('Réécriture du CV…', 'Rewriting the CV…'), 'waiting');
       showOut('');
-      const stream = await eng.chat.completions.create({
-        messages: rewriteMessages(base, mode, target),
-        stream: true,
+      const stream = await startChat(rewriteMessages(base, mode, target), {
         temperature: 0.3,
         top_p: 0.95,
         max_tokens: 2500,
       });
       let raw = '';
-      for await (const chunk of stream) {
-        const delta = chunk && chunk.choices && chunk.choices[0] && chunk.choices[0].delta;
+      for await (const delta of stream) {
         if (delta && delta.content) {
           raw += delta.content;
           out.textContent = raw;
@@ -553,5 +732,22 @@
     renderOffer();
     status('');
   });
+  // The provider: save on click or on Enter in either field, retire on the
+  // clear button, restore the saved values where they were when the panel
+  // is opened again. A page that ships no provider block skips all of it and
+  // keeps the local model.
+  if (provSave && provUrl && provModel && provKey) {
+    provSave.addEventListener('click', () => saveProvider());
+    for (const field of [provUrl, provModel, provKey]) {
+      field.addEventListener('keydown', (e) => {
+        if ((e && e.key) === 'Enter') {
+          e.preventDefault(); // a config field must not submit the page
+          saveProvider();
+        }
+      });
+    }
+  }
+  if (provClear) provClear.addEventListener('click', clearProvider);
   renderOffer();
+  renderProvider();
 })();

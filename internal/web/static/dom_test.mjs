@@ -137,6 +137,10 @@ const localStorage = {
   removeItem: (k) => storage.delete(k),
 };
 let stored = null;      // what the last API call received
+// The replies the provider endpoint gives when the test asks it for one:
+// the harness answers what the tests push, like a real OpenAI server reads
+// its own configuration.
+const providerReplies = [];
 const schemaServed = fixture.schema;
 const window = {
   prompt: () => 'Renommé',
@@ -162,9 +166,40 @@ globalThis.fetch = async (url, init) => {
       fetchedAt: '2026-10-14T00:00:00Z',
     }) };
   }
+  if (String(url).indexOf('/chat/completions') >= 0) {
+    stored = { url: String(url), body: init && init.body };
+    const reply = providerReplies.shift();
+    if (reply === undefined) return { ok: false, status: 500, json: async () => ({}), text: async () => '' };
+    // Un appel que le navigateur refuse (CORS) ne donne jamais de réponse :
+    // le fetch jette avant, et le message doit en porter la trace.
+    if (reply === 'throw') throw new TypeError('Failed to fetch');
+    if (reply && reply.status) {
+      return { ok: false, status: reply.status, json: async () => (reply.body || {}), text: async () => JSON.stringify(reply.body || {}) };
+    }
+    return {
+      ok: true,
+      status: 200,
+      body: (() => {
+        const encoded = new TextEncoder().encode(reply);
+        let done = false;
+        return {
+          getReader: () => ({
+            read: async () => {
+              if (done) return { done: true };
+              done = true;
+              return { done: false, value: encoded };
+            },
+          }),
+        };
+      })(),
+    };
+  }
   stored = { url: String(url), body: init && init.body };
   if (String(url).indexOf('/api/render') === 0) {
     return { ok: true, blob: async () => new Blob(['x']), headers: { get: () => 'attachment; filename="a.pdf"' } };
+  }
+  if (String(url).indexOf('/api/text') === 0) {
+    return { ok: true, text: async () => 'Jeanne Rousseau\nDéveloppeuse Go' };
   }
   return { ok: true, json: async () => JSON.parse(String(init.body)) };
 };
@@ -520,6 +555,87 @@ check(localStorage.getItem('atscv.offer.v1') === null,
   'the stored offer survived its own clear button');
 check(document.getElementById('ia-offer').hidden === true,
   'the offer line stayed visible after the clear');
+
+/* 7f. a provider the reader owns: typed once, kept in this browser, and
+      every run after that goes to it — no WebGPU asked for, the answer
+      streamed from the endpoint the fields name. Retiring it gives the
+      panel back to the local model. */
+const provUrlNode = document.getElementById('ia-provider-url');
+const provModelNode = document.getElementById('ia-provider-model');
+const provKeyNode = document.getElementById('ia-provider-key');
+const provSaveNode = document.getElementById('ia-provider-save');
+const provClearNode = document.getElementById('ia-provider-clear');
+check(!!provUrlNode && !!provModelNode && !!provKeyNode && !!provSaveNode && !!provClearNode,
+  'the provider block is missing a field or a button');
+provUrlNode.value = 'https://api.exemple.fr/v1';
+provModelNode.value = 'gpt-mini';
+provKeyNode.value = 'sk-test';
+provSaveNode.click();
+const savedLLM = JSON.parse(localStorage.getItem('atscv.llm.v1') || 'null');
+check(!!savedLLM && savedLLM.baseUrl === 'https://api.exemple.fr/v1' &&
+    savedLLM.model === 'gpt-mini' && savedLLM.apiKey === 'sk-test',
+  'the provider fields were not kept: ' + JSON.stringify(savedLLM));
+check(!provClearNode.hidden, 'no way to retire the saved provider');
+check((document.getElementById('ia-note').textContent || '').indexOf('gpt-mini') >= 0,
+  'the panel does not name the provider it now answers through: ' +
+    JSON.stringify(document.getElementById('ia-note').textContent));
+providerReplies.push(
+  'data: {"choices":[{"delta":{"content":"Analyse"}}]}\n\n' +
+  'data: {"choices":[{"delta":{"content":" du CV"}}]}\n\n' +
+  'data: [DONE]\n\n'
+);
+document.getElementById('ia-run').click();
+await new Promise((r) => setTimeout(r, 100));
+check(stored !== null && stored.url === 'https://api.exemple.fr/v1/chat/completions',
+  'the analysis did not call the provider the panel named: ' + JSON.stringify(stored && stored.url));
+if (stored && stored.body) {
+  const sent = JSON.parse(stored.body);
+  check(sent.model === 'gpt-mini', 'the request did not carry the model: ' + JSON.stringify(sent.model));
+  check(sent.stream === true, 'the request is not a stream request');
+  check(Array.isArray(sent.messages) && sent.messages.length >= 2, 'no conversation in the request');
+}
+const llmOut = document.getElementById('ia-out');
+check(!llmOut.hidden && llmOut.textContent === 'Analyse du CV',
+  'the streamed answer did not reach the panel: ' + JSON.stringify(llmOut.textContent));
+check((document.getElementById('ia-status').textContent || '').indexOf('Réponse en ') >= 0 ||
+    (document.getElementById('ia-status').textContent || '').indexOf('Answer in ') >= 0,
+  'the answer never finished: ' + JSON.stringify(document.getElementById('ia-status').textContent));
+check(document.getElementById('ia-run').disabled === false,
+  'the analysis button stayed disabled after a provider run');
+// Un serveur qui refuse l'appel navigateur (CORS) : le fetch jette, et le
+// message nomme la pré-demande OPTIONS et l'URL exacte, pas un vide.
+providerReplies.push('throw');
+document.getElementById('ia-run').click();
+await new Promise((r) => setTimeout(r, 100));
+let providerFail = document.getElementById('ia-status').textContent || '';
+check(providerFail.indexOf('OPTIONS') >= 0 && providerFail.indexOf('chat/completions') >= 0,
+  'a refused call did not name the preflight and the URL: ' + JSON.stringify(providerFail));
+// Un 404 porté par une base sans /v1 reçoit le conseil qui la complète.
+provUrlNode.value = 'https://api.exemple.fr';
+provSaveNode.click();
+check((document.getElementById('ia-status').textContent || '').indexOf('gpt-mini') >= 0,
+  'saving a base without /v1 refused the save');
+providerReplies.push({ status: 404 });
+document.getElementById('ia-run').click();
+await new Promise((r) => setTimeout(r, 100));
+providerFail = document.getElementById('ia-status').textContent || '';
+check(providerFail.indexOf('HTTP 404') >= 0 && providerFail.indexOf('/v1') >= 0,
+  'a 404 on a /v1-less base stayed silent about it: ' + JSON.stringify(providerFail));
+check(document.getElementById('ia-run').disabled === false,
+  'the analysis button stayed disabled after a refused provider run');
+// An incomplete config is refused, not saved half-way.
+provUrlNode.value = 'localhost';
+provSaveNode.click();
+check(localStorage.getItem('atscv.llm.v1') === null ||
+    /^https?:\/\//.test(JSON.parse(localStorage.getItem('atscv.llm.v1')).baseUrl),
+  'a provider URL without a scheme was saved');
+// Retiring the provider hands the panel back to the local model.
+provUrlNode.value = 'https://api.exemple.fr/v1';
+provModelNode.value = 'gpt-mini';
+provSaveNode.click();
+provClearNode.click();
+check(localStorage.getItem('atscv.llm.v1') === null, 'the retired provider is still active');
+check(provClearNode.hidden === true, 'the clear button stayed visible with nothing to retire');
 
 if (reportTab) reportTab.click(); // leave the editor on a panel the rest reads
 

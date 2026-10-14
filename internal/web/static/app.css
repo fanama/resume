@@ -528,6 +528,19 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 .ia-offer-hint { margin: 0; }
 #ia-offer-clear { align-self: flex-start; }
 
+/* The provider block: the OpenAI-compatible endpoint the reader names for
+   the analyses. Three fields, one width each — the URL wide, the model and
+   the key what they hold — laid out like the offer block above so the two
+   opt-ins read as the two opt-ins they are. */
+.ia-provider { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ia-provider-label { font-weight: 700; color: var(--accent); }
+.ia-provider-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#ia-provider-url { flex: 1 1 14rem; min-width: 0; }
+#ia-provider-model { flex: 0 1 11rem; min-width: 0; }
+#ia-provider-key { flex: 0 1 9rem; min-width: 0; }
+.ia-provider-hint { margin: 0; }
+#ia-provider-clear { align-self: flex-start; }
+
 /* The spinner marks every phase the reader waits for: engine, download,
    generation. Its own display must be restated on [hidden], or this rule
    would beat the browser's display:none and the spinner never hide. */

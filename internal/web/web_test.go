@@ -77,6 +77,8 @@ func TestPageServesTheShell(t *testing.T) {
 		`hx-post="/api/preview"`, `hx-post="/api/lint"`, `hx-post="/api/text"`, `hx-post="/api/tex"`,
 		`data-tab="ia"`, `id="ia-run"`, `id="ia-out"`, `id="ia-spinner"`, `id="ia-bar"`,
 		`id="ia-url"`, `id="ia-job"`, `id="ia-offer"`, `id="ia-offer-clear"`,
+		`id="ia-provider-url"`, `id="ia-provider-model"`, `id="ia-provider-key"`,
+		`id="ia-provider-save"`, `id="ia-provider-clear"`,
 		`id="ia-optimize"`, `id="ia-translate"`,
 		`href="/api/style.css?accent=1F3864`,
 	} {
@@ -178,9 +180,12 @@ func TestSecurityHeaders(t *testing.T) {
 		}
 	}
 	// The analysis panel is the one thing allowed to leave 'self', and only
-	// for the WebAssembly it compiles and the model files it downloads: the
-	// resume itself still has nowhere to go.
-	for _, directive := range []string{"'wasm-unsafe-eval'", "https://huggingface.co", "https://*.hf.co"} {
+	// for the WebAssembly it compiles and the model files it downloads — and,
+	// since the panel lets the reader name an OpenAI-compatible provider in
+	// the page, any https origin the reader chooses, plus the local runtimes
+	// that answer on http over the loopback. The resume itself still has
+	// nowhere to go but there.
+	for _, directive := range []string{"'wasm-unsafe-eval'", "https://huggingface.co", "https://*.hf.co", "connect-src 'self' https:", "http://localhost:*", "http://127.0.0.1:*"} {
 		if !strings.Contains(csp, directive) {
 			t.Errorf("the policy is missing %q: %s", directive, csp)
 		}

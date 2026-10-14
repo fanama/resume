@@ -162,6 +162,26 @@
         <p class="muted ia-offer-hint">La page de l’offre est récupérée par le serveur et gardée dans ce navigateur : la prochaine analyse comparera le CV à cette offre.</p>
       </div>
       <!--
+        The provider block: an OpenAI-compatible endpoint the reader owns —
+        api.openai.com, Mistral, a local Ollama or llama.cpp server — is typed
+        here, and the next analyses call it instead of the model that runs in
+        the browser. The three fields are kept in this browser's storage, like
+        the saved offer: the base URL and the model name, the key that the
+        endpoint asks for (empty for a local runtime). Leaving it turns the
+        panel back to the local MiniCPM; the resume then goes, again, nowhere.
+      -->
+      <div class="ia-provider">
+        <label class="ia-provider-label" for="ia-provider-url">Fournisseur compatible OpenAI</label>
+        <div class="ia-provider-controls">
+          <input type="url" id="ia-provider-url" spellcheck="false" autocomplete="off" placeholder="https://api.openai.com/v1" aria-label="URL de base du fournisseur">
+          <input type="text" id="ia-provider-model" spellcheck="false" autocomplete="off" placeholder="gpt-4o-mini" aria-label="Nom du modèle">
+          <input type="password" id="ia-provider-key" spellcheck="false" autocomplete="off" placeholder="Clé API" aria-label="Clé API">
+          <button type="button" id="ia-provider-save">Utiliser ce fournisseur</button>
+        </div>
+        <p class="muted ia-provider-hint">La base doit finir par <code>/v1</code> si l'API le veut : les prochaines analyses appelleront <code>…/chat/completions</code> avec ce modèle. Sans clé (Ollama, llama.cpp), le champ peut rester vide.</p>
+        <button type="button" id="ia-provider-clear" class="danger" hidden>Revenir au modèle local</button>
+      </div>
+      <!--
         The bar only appears while the model is being downloaded — the one
         phase that lasts long enough to need one. Its width never comes from a
         style attribute: the CSP forbids inline style, so the value is the

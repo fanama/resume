@@ -559,10 +559,12 @@ Trois faits à connaître :
   `internal/web/static/vendor/webllm.js`, au même titre que pdf.js, et n'est
   chargé qu'au clic : aucune dépendance au build, aucune requête au chargement
   de la page.
-- **Deux entrées de la CSP sont plus larges que `'self'`** : `'wasm-unsafe-eval'`
+- **Trois entrées de la CSP sont plus larges que `'self'`** : `'wasm-unsafe-eval'`
   pour compiler le WebAssembly du modèle, et les sources Hugging Face où les
-  poids vivent. C'est la seule chose que l'application laisse sortir, et le CV
-  ne passe pas par là.
+  poids vivent. La troisième ouvre connect-src aux https arbitraires et aux
+  runtimes http locaux (`localhost:*`, `127.0.0.1:*`), pour le fournisseur
+  ci-dessous — c'est le seul endroit où le CV peut passer, et il n'y passe que
+  si vous y tapez une URL.
 
 Le modèle (`vs4vijay/MiniCPM5-2B-MLC`, quantification q4f16_1) et le prompt
 sont déclarés dans `internal/web/static/analysis.js`. Le panneau envoie au
@@ -577,6 +579,27 @@ pendant le téléchargement des poids, seule phase mesurée ; la réponse qui
 s'écrit derrière un curseur clignotant ; le temps de réponse affiché à la fin,
 et l'erreur en rouge. Tout est en CSS externe, la politique interdit le style
 inline.
+
+### Votre propre fournisseur (OpenAI standard)
+
+Le modèle local n'est pas une obligation : le panneau accepte un
+**fournisseur compatible OpenAI** — `api.openai.com`, Mistral, Groq,
+OpenRouter, ou un Ollama et un llama.cpp locaux — nommé dans trois champs :
+base d'URL (`https://api.openai.com/v1`), nom du modèle, clé API (vide pour un
+runtime local). « Utiliser ce fournisseur » active la configuration ;
+« Revenir au modèle local » la désactive — le moteur WebGPU reprend, et le CV
+redevient une donnée qui ne quitte pas la page.
+
+Les analyses, les rewrites et les traductions partagent le même chemin : les
+messages partent en `POST {base}/chat/completions`, le flux SSE qui revient —
+les mêmes lignes `data:` que chaque serveur qui suit le standard — écrit la
+réponse au fil de l'eau, et les erreurs du fournisseur (statut HTTP, message de
+son corps) sont reprises dans la barre de statut. La configuration vit dans le
+`localStorage` du navigateur (`atscv.llm.v1`), à côté de l'offre et des
+brouillons : la clé n'appartient à aucun serveur, mais il faut savoir qu'elle
+est lisible par quiconque ouvre le même profil. Et le CV, dans ce mode, va où
+votre URL le porte — le contrat du panneau en tenant compte : reliez le CV à un
+fournisseur de confiance.
 
 Deux actions vont plus loin que la relecture, avec le même garde-fou que
 l'import : **« Optimiser le contenu »** réécrit l'accroche, le résumé et les

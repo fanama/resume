@@ -117,12 +117,15 @@ func (s *Server) Handler() http.Handler {
 // files, so everything can be denied by default; a resume is personal data and
 // has no reason to reach a third party.
 //
-// Two entries are wider than 'self', both for the opt-in AI analysis panel:
+// Three entries are wider than 'self', all opt-in:
 // 'wasm-unsafe-eval' lets the browser compile the WebGPU WebAssembly of the
 // model it runs locally, and the huggingface.co sources are where that model's
-// weights are downloaded from. Neither endpoint ever receives the resume: the
-// inference happens in the browser, and Referrer-Policy keeps the download
-// from carrying anything along.
+// weights are downloaded from. The analysis panel also lets the reader name
+// their own OpenAI-compatible provider in the page itself — an api.openai.com,
+// a Mistral, a local Ollama or llama.cpp server — so connect-src admits any
+// https origin, plus the http runtimes localhost answers on. The resume only
+// ever travels where the reader typed a URL, and Referrer-Policy keeps every
+// request from carrying anything along.
 func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
@@ -134,7 +137,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 			"script-src 'self' 'wasm-unsafe-eval'",
 			"style-src 'self'",
 			"img-src 'self' data:",
-			"connect-src 'self' https://huggingface.co https://*.huggingface.co https://*.hf.co",
+			"connect-src 'self' https: http://localhost:* http://127.0.0.1:* https://huggingface.co https://*.huggingface.co https://*.hf.co",
 			"form-action 'self'",
 			"frame-ancestors 'none'",
 			"base-uri 'none'",
