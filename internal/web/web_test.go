@@ -4,6 +4,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -75,6 +76,7 @@ func TestPageServesTheShell(t *testing.T) {
 		`id="schema-target"`, `id="data"`,
 		`hx-post="/api/preview"`, `hx-post="/api/lint"`, `hx-post="/api/text"`, `hx-post="/api/tex"`,
 		`data-tab="ia"`, `id="ia-run"`, `id="ia-out"`, `id="ia-spinner"`, `id="ia-bar"`,
+		`id="ia-url"`, `id="ia-job"`, `id="ia-offer"`, `id="ia-offer-clear"`,
 		`id="ia-optimize"`, `id="ia-translate"`,
 		`href="/api/style.css?accent=1F3864`,
 	} {
@@ -1127,4 +1129,195 @@ func TestTouchTargetsAreSizedForFingers(t *testing.T) {
 func atoiOrZero(s string) int {
 	n, _ := strconv.Atoi(s)
 	return n
+}
+
+/* ------------------------------------------------------------------ /api/job */
+
+// jobPost sends an URL to the offer endpoint, as the panel does: a JSON body.
+func jobPost(s *Server, url string) *httptest.ResponseRecorder {
+	body := `"url": "` + url + `"`
+	req := httptest.NewRequest(http.MethodPost, "/api/job", strings.NewReader("{"+body+"}"))
+	req.Header.Set("Content-Type", "application/json")
+	rec := httptest.NewRecorder()
+	s.Handler().ServeHTTP(rec, req)
+	return rec
+}
+
+// TestJobFetchesAnOffer points the fetcher at a page the test serves itself.
+// The guard is rerouted with it: the point of the test is the download, the
+// extraction and the shape of the answer, not the rule that refuses a local
+// address — which the next test covers on its own.
+func TestJobFetchesAnOffer(t *testing.T) {
+	const page = "<html><head><title>Développeur Go — Acme</title></head>"
+	var sawUA, sawAccept string
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		sawUA = r.Header.Get("User-Agent")
+		sawAccept = r.Header.Get("Accept")
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, page+`
+<body><nav>cookies</nav>
+<script>var x=1;</script>
+<h1>Développeur Go</h1>
+<p>Vous concevez des services en Go.</p>
+<ul><li>Go</li><li>PostgreSQL</li></ul>
+</body></html>`)
+	}))
+	defer srv.Close()
+
+	s := testServer(t)
+	oldGuard := jobAllow
+	jobAllow = func(string) error { return nil }
+	defer func() { jobAllow = oldGuard }()
+
+	rec := jobPost(s, srv.URL)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var offer jobResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &offer); err != nil {
+		t.Fatalf("decode answer: %v", err)
+	}
+	if offer.URL != srv.URL {
+		t.Errorf("the answer does not name the page it read: %q", offer.URL)
+	}
+	if offer.Title != "Développeur Go — Acme" {
+		t.Errorf("title = %q", offer.Title)
+	}
+	// The machinery stays out: scripts and navigation do not reach the text an
+	// analysis would read; the offer itself does, one line per element.
+	if !strings.Contains(offer.Text, "Vous concevez des services en Go.") {
+		t.Errorf("the offer body is not in the text: %q", offer.Text)
+	}
+	if strings.Contains(offer.Text, "var x=1") || strings.Contains(offer.Text, "cookies") {
+		t.Errorf("machinery survived the extraction: %q", offer.Text)
+	}
+	if !strings.Contains(offer.Text, "• Go") {
+		t.Errorf("list items do not read as items: %q", offer.Text)
+	}
+	if offer.FetchedAt == "" {
+		t.Error("no fetch moment in the answer")
+	}
+	// A library identity is what boards refuse before even answering: the
+	// fetch must present itself as a browser reading a public page.
+	if !strings.Contains(sawUA, "Mozilla/5.0") {
+		t.Errorf("the fetch does not name a browser: %q", sawUA)
+	}
+	if !strings.Contains(sawAccept, "text/html") {
+		t.Errorf("the fetch does not accept HTML: %q", sawAccept)
+	}
+}
+
+// TestJobFallsBackToThePublicOffer is the LinkedIn path: the search page
+// only lands on a login wall, while the same posting reads fine as its
+// /jobs/view/<id> twin. The fetcher must take that twin on its own, from the
+// id the asked URL carried, and never settle for the wall's text.
+func TestJobFallsBackToThePublicOffer(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if strings.HasPrefix(r.URL.Path, "/jobs/view/") {
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprint(w, `<html><head><title>Ingénieure Go — BuyCo</title></head><body><h1>Ingénieure Go</h1><p>Trois ans en Go et Kubernetes.</p></body></html>`)
+			return
+		}
+		if r.URL.Path == "/uas/login" {
+			// The wall itself serves its sign-in form, once, without chasing
+			// its own tail.
+			w.Header().Set("Content-Type", "text/html; charset=utf-8")
+			fmt.Fprint(w, `<html><head><title>Identifiez-vous</title></head><body><p>Connectez-vous pour voir la page.</p></body></html>`)
+			return
+		}
+		if strings.HasPrefix(r.URL.Path, "/jobs/") {
+			// The search pages of the boards land on the member wall, exactly
+			// like the real ones do.
+			http.Redirect(w, r, "/uas/login?wall", http.StatusFound)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		fmt.Fprint(w, `<html><head><title>Identifiez-vous</title></head><body><p>Connectez-vous pour voir la page.</p></body></html>`)
+	}))
+	defer srv.Close()
+
+	s := testServer(t)
+	oldAllow := jobAllow
+	jobAllow = func(string) error { return nil }
+	defer func() { jobAllow = oldAllow }()
+	oldFallback := jobFallback
+	jobFallback = func(u *url.URL) *url.URL {
+		id := u.Query().Get("currentJobId")
+		if id == "" {
+			return nil
+		}
+		return &url.URL{Scheme: "http", Host: u.Host, Path: "/jobs/view/" + id}
+	}
+	defer func() { jobFallback = oldFallback }()
+
+	search := srv.URL + "/jobs/search-results/?currentJobId=4476802286&keywords=jobs"
+	rec := jobPost(s, search)
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status = %d, body = %s", rec.Code, rec.Body.String())
+	}
+	var offer jobResponse
+	if err := json.Unmarshal(rec.Body.Bytes(), &offer); err != nil {
+		t.Fatalf("decode answer: %v", err)
+	}
+	if offer.Title != "Ingénieure Go — BuyCo" {
+		t.Errorf("title = %q, want the public page's", offer.Title)
+	}
+	if !strings.Contains(offer.Text, "Trois ans en Go") {
+		t.Errorf("the text is not the public page's: %q", offer.Text)
+	}
+	if !strings.HasSuffix(offer.URL, "/jobs/view/4476802286") {
+		t.Errorf("url = %q, want the public twin", offer.URL)
+	}
+}
+
+// TestJobRefusesLocalTargets is the guard of an endpoint that issues requests
+// to an address it is told: a loopback, a private network and a link-local
+// address are all places a local server works, and an offer fetch has no
+// business reaching any of them.
+func TestJobRefusesLocalTargets(t *testing.T) {
+	s := testServer(t)
+	for _, bad := range []string{
+		"http://127.0.0.1:8080/annonce",
+		"http://localhost/annonce",
+		"http://169.254.169.254/meta",
+		"http://10.0.0.5/annonce",
+		"http://[::1]/annonce",
+		"ftp://exemple.fr/annonce",
+		"not an url",
+		"",
+	} {
+		rec := jobPost(s, bad)
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("%q: status = %d, want 400", bad, rec.Code)
+			continue
+		}
+		var got errorResponse
+		if err := json.Unmarshal(rec.Body.Bytes(), &got); err != nil || got.Error == "" {
+			t.Errorf("%q: no reason in the answer", bad)
+		}
+	}
+}
+
+// TestJobRefusesNonHTMLPages stops the fetcher where the offer ends: a page
+// that does not answer HTML or plain text is nothing an analysis can read,
+// and downloading it would be fetching to nowhere.
+func TestJobRefusesNonHTMLPages(t *testing.T) {
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/pdf")
+		fmt.Fprint(w, "%PDF-1.4 not an offer")
+	}))
+	defer srv.Close()
+
+	s := testServer(t)
+	oldGuard := jobAllow
+	jobAllow = func(string) error { return nil }
+	defer func() { jobAllow = oldGuard }()
+
+	rec := jobPost(s, srv.URL)
+	if rec.Code != http.StatusBadRequest {
+		t.Fatalf("status = %d, want 400", rec.Code)
+	}
+	if !strings.Contains(rec.Body.String(), "HTML") {
+		t.Errorf("the answer does not say what it wanted: %s", rec.Body.String())
+	}
 }

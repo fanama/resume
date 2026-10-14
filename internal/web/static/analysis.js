@@ -47,6 +47,13 @@
   const run = document.getElementById('ia-run');
   const optimize = document.getElementById('ia-optimize');
   const translate = document.getElementById('ia-translate');
+  // The offer of the job the draft is aimed at: one input, one fetch button,
+  // one line that keeps naming the offer the analyses will read beside the
+  // resume, and the button that unties them.
+  const jobRun = document.getElementById('ia-job');
+  const jobUrl = document.getElementById('ia-url');
+  const offerLine = document.getElementById('ia-offer');
+  const offerClear = document.getElementById('ia-offer-clear');
   const statusNode = document.getElementById('ia-status');
   const out = document.getElementById('ia-out');
   const dataField = document.getElementById('data');
@@ -54,9 +61,14 @@
   const progress = document.getElementById('ia-progress');
   const bar = document.getElementById('ia-bar');
   const pct = document.getElementById('ia-pct');
-  const buttons = [run, optimize, translate];
-  if (buttons.some((b) => !b) || !statusNode || !out || !dataField ||
-      !spinner || !progress || !bar || !pct) return;
+  // The three actions. Optimize and translate may be commented out of the
+  // page — they are today — and the panel must survive that: a missing
+  // optional button removes a feature, it must not leave the others dead.
+  // The elements every listener needs are the required ones, never optional.
+  const buttons = [run, optimize, translate, jobRun].filter(Boolean);
+  if (!run || !statusNode || !out || !dataField ||
+      !spinner || !progress || !bar || !pct ||
+      !jobRun || !jobUrl || !offerLine || !offerClear) return;
 
   // The engine survives between two runs: reloading it would re-read the
   // cached weights, and the first load is the expensive one.
@@ -98,6 +110,7 @@
      The label is set when the panel opens, which is the moment before any
      click — the draft may not be in the field yet when this file loads. */
   const updateTranslateLabel = () => {
+    if (!translate) return;
     let lang = '';
     try {
       lang = dataField.value ? (JSON.parse(dataField.value).lang || '') : '';
@@ -113,27 +126,47 @@
 
   /* The prompts. The review reads what a parser reads; the two rewrites get
      the JSON itself, because JSON in, JSON out is the only exchange where the
-     structure can be checked on the way back in. */
-  const reviewMessages = (text) => [
-    {
-      role: 'system',
-      content:
-        "Tu es un recruteur senior et un expert de l'optimisation des CV pour les logiciels de tri ATS. " +
-        'Tu analyses des CV avec rigueur et tu écris des conseils applicables immédiatement.',
-    },
-    {
-      role: 'user',
-      content:
-        'Voici le CV, tel qu\'un parseur le lit :\n\n' + text + '\n\n' +
-        "Propose des améliorations concrètes, dans la langue du CV (français par défaut), " +
-        'avec exactement ces trois rubriques, séparées par une ligne vide :\n' +
-        '1. Points forts — ce qui fonctionne déjà, en 3 points maximum.\n' +
-        '2. À améliorer — un problème par ligne, chacun suivi de la raison.\n' +
-        '3. Suggestions — des réécritures prêtes à coller, verbe d\'action et chiffres en tête de phrase.\n' +
-        "Ne rapporte aucune expérience ni aucun chiffre qui n'est pas dans le CV. " +
-        'Quatre cents mots au maximum.',
-    },
-  ];
+     structure can be checked on the way back in. When an offer is stored, the
+     review becomes a comparison: the offer text rides along, and the answer
+     gains the rubric that names what the offer asks and the CV does not say. */
+  const reviewMessages = (text, offer) => {
+    let ask =
+      'Propose des améliorations concrètes, dans la langue du CV (français par défaut), ' +
+      'avec exactement ces trois rubriques, séparées par une ligne vide :\n';
+    let intro =
+      'Voici le CV, tel qu\'un parseur le lit :\n\n' + text + '\n\n';
+    let rubrics =
+      '1. Points forts — ce qui fonctionne déjà, en 3 points maximum.\n' +
+      '2. À améliorer — un problème par ligne, chacun suivi de la raison.\n' +
+      '3. Suggestions — des réécritures prêtes à coller, verbe d\'action et chiffres en tête de phrase.\n';
+    if (offer && offer.text) {
+      intro +=
+        'Le CV vise l\'offre ci-dessous' +
+        (offer.title ? ' (« ' + offer.title + ' »)' : '') +
+        ' :\n\n' + String(offer.text).slice(0, 8000) + '\n\n';
+      ask =
+        'Compare le CV à cette offre : propose des améliorations concrètes, dans la langue du CV ' +
+        '(français par défaut), avec exactement ces quatre rubriques, séparées par une ligne vide :\n';
+      rubrics +=
+        '4. Alignement avec l\'offre — les compétences et mots-clés que l\'offre demande et que le CV ' +
+        'ne dit pas, et ce que le CV avance que l\'offre ne demande pas.\n';
+    }
+    return [
+      {
+        role: 'system',
+        content:
+          "Tu es un recruteur senior et un expert de l'optimisation des CV pour les logiciels de tri ATS. " +
+          'Tu analyses des CV avec rigueur et tu écris des conseils applicables immédiatement.',
+      },
+      {
+        role: 'user',
+        content:
+          intro + ask + rubrics +
+          "Ne rapporte aucune expérience ni aucun chiffre qui n'est pas dans le CV. " +
+          'Quatre cents mots au maximum.',
+      },
+    ];
+  };
 
   const rewriteMessages = (resume, mode, target) => {
     const json = JSON.stringify(resume);
@@ -240,6 +273,93 @@
     return { ok: true, resume: await res.json() };
   };
 
+  /* The stored offer. It lives in this browser's own storage, beside the
+     draft — fetched once by the server, then read from here by every run of
+     the review. No session, no account, no server-side copy: Remove the
+     stored offer and nothing but the fetch's own memory ever held it. */
+  const OFFER_KEY = 'atscv.offer.v1';
+
+  const loadOffer = () => {
+    try {
+      const raw = localStorage.getItem(OFFER_KEY);
+      if (!raw) return null;
+      const offer = JSON.parse(raw);
+      if (!offer || typeof offer.text !== 'string' || !offer.text.trim()) return null;
+      return offer;
+    } catch (e) {
+      return null;
+    }
+  };
+
+  /* renderOffer names what every next analysis will compare the CV against:
+     the title of the offer, the host it came from, the size of what was
+     kept. A reader must always be able to see which offer the answer was
+     aimed at — or that none is stored. */
+  const renderOffer = () => {
+    const offer = loadOffer();
+    if (!offer) {
+      offerLine.hidden = true;
+      offerClear.hidden = true;
+      return;
+    }
+    const host = offer.url ? String(offer.url).replace(/^https?:\/\//, '').split('/')[0] : '';
+    offerLine.textContent = label('Offre enregistrée : ', 'Saved offer: ') +
+      (offer.title || host || label('page sans titre', 'untitled page')) +
+      (host ? ' — ' + host : '') +
+      ' (' + offer.text.length + ' ' + label('caractères', 'characters') + ')';
+    offerLine.hidden = false;
+    offerClear.hidden = false;
+  };
+
+  /* fetchOfferJob asks the server for the page of the offer. The URL is the
+     only thing that leaves this page; the answer, the readable text of the
+     page, is stored locally and named above the panel. */
+  const fetchOfferJob = async () => {
+    setBusy(true);
+    out.hidden = true;
+    spin(false);
+    downloadOff();
+    try {
+      const url = jobUrl.value.trim();
+      if (!/^https?:\/\//i.test(url)) {
+        return status(label(
+          'Entrez une URL qui commence par http:// ou https://.',
+          'Enter a URL that starts with http:// or https://.'
+        ), 'error');
+      }
+      spin(true);
+      status(label('Récupération de la page de l\'offre…', 'Fetching the offer page…'), 'waiting');
+      const res = await fetch('/api/job', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        return status(body.error || label(
+          'La page n\'a pas pu être récupérée.',
+          'The page could not be fetched.'
+        ), 'error');
+      }
+      if (!body.text || !String(body.text).trim()) {
+        return status(label(
+          'La page ne contient pas de texte lisible : essayez une autre URL.',
+          'The page carries no readable text: try another URL.'
+        ), 'error');
+      }
+      localStorage.setItem(OFFER_KEY, JSON.stringify(body));
+      renderOffer();
+      status(label('Offre enregistrée : ', 'Offer saved: ') +
+        (body.title || label('page sans titre', 'untitled page')));
+    } catch (err) {
+      status(label('Erreur : ', 'Error: ') + ((err && err.message) || String(err)), 'error');
+    } finally {
+      spin(false);
+      downloadOff();
+      setBusy(false);
+    }
+  };
+
   const refusal = () => status(label(
     'WebGPU indisponible : ce navigateur ne peut pas exécuter l\'analyse.',
     'WebGPU is unavailable: this browser cannot run the analysis.'
@@ -292,7 +412,7 @@
       showOut('');
       const started = Date.now();
       const stream = await eng.chat.completions.create({
-        messages: reviewMessages(text),
+        messages: reviewMessages(text, loadOffer()),
         stream: true,
         temperature: 0.7,
         top_p: 0.95,
@@ -415,6 +535,23 @@
   };
 
   run.addEventListener('click', () => review());
-  optimize.addEventListener('click', () => rewrite('optimize'));
-  translate.addEventListener('click', () => rewrite('translate'));
+  // The two rewrites live behind the buttons the page chooses to ship: a
+  // commented-out button gets no listener and costs nothing.
+  if (optimize) optimize.addEventListener('click', () => rewrite('optimize'));
+  if (translate) translate.addEventListener('click', () => rewrite('translate'));
+  // The offer: fetch on click or on Enter, clear on the clear button, and the
+  // saved line restored exactly where it was when the panel is opened again.
+  jobRun.addEventListener('click', () => fetchOfferJob());
+  jobUrl.addEventListener('keydown', (e) => {
+    if ((e && e.key) === 'Enter') {
+      e.preventDefault(); // a URL field must not submit the page around it
+      fetchOfferJob();
+    }
+  });
+  offerClear.addEventListener('click', () => {
+    localStorage.removeItem(OFFER_KEY);
+    renderOffer();
+    status('');
+  });
+  renderOffer();
 })();

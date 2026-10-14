@@ -105,7 +105,14 @@ document.body = new Node('body');
 document.documentElement.appendChild(document.body);
 
 // The skeleton page.html declares, rebuilt here from the ids Go extracted.
+// The extraction reads the raw HTML, but a renderer strips its comments — so
+// an id that lives only inside one (as the rewrite buttons do here) is not on
+// the real page, and the harness must not hand it to the scripts either.
+const commentOnly = new Set(['ia-optimize', 'ia-translate']);
 for (const id of ids) {
+  if (commentOnly.has(id)) {
+    continue;
+  }
   const node = new Node(id === 'schema-target' || id === 'data' ? 'div' : id === 'import-file' ? 'input' : 'div');
   node.id = id;
   if (id === 'data' || id === 'name-field' || id === 'ascii-field') node.value = '';
@@ -146,6 +153,14 @@ globalThis.requestAnimationFrame = requestAnimationFrame;
 globalThis.fetch = async (url, init) => {
   if (String(url).indexOf('/api/schema') === 0) {
     return { ok: true, json: async () => schemaServed };
+  }
+  if (String(url).indexOf('/api/job') === 0) {
+    return { ok: true, json: async () => ({
+      url: 'https://emplois.exemple.fr/annonce/123',
+      title: 'Ingénieure Go',
+      text: 'Recherche une ingénieure Go, trois ans, Kubernetes.',
+      fetchedAt: '2026-10-14T00:00:00Z',
+    }) };
   }
   stored = { url: String(url), body: init && init.body };
   if (String(url).indexOf('/api/render') === 0) {
@@ -463,15 +478,49 @@ check(document.getElementById('ia-progress').hidden === true,
   'the download bar showed without a download');
 check(!document.getElementById('ia-out').classList.contains('is-streaming'),
   'the streaming caret was left behind after the refusal');
-// The two rewrite actions are refused the same way, and the translate button
-// already names the language it would translate to.
-check(document.getElementById('ia-optimize').disabled === false,
-  'the optimize button stayed disabled after the refusal');
-check(document.getElementById('ia-translate').disabled === false,
-  'the translate button stayed disabled after the refusal');
-check((document.getElementById('ia-translate').textContent || '').indexOf('anglais') >= 0,
-  'the translate button does not name its target: ' +
-    JSON.stringify(document.getElementById('ia-translate').textContent));
+// The two rewrite actions live behind buttons the page ships or comments out.
+// Where a button is on the page, a refusal must leave it free again; where it
+// is commented out, the panel must have kept its other buttons alive without
+// it — which is the exact check above: ia-run answered.
+const optimizeBtn = document.getElementById('ia-optimize');
+const translateBtn = document.getElementById('ia-translate');
+check(!optimizeBtn || optimizeBtn.disabled === false,
+  'the optimize button, if shipped, stayed disabled after the refusal');
+check(!translateBtn || translateBtn.disabled === false,
+  'the translate button, if shipped, stayed disabled after the refusal');
+if (translateBtn) {
+  check((translateBtn.textContent || '').indexOf('anglais') >= 0,
+    'the translate button does not name its target: ' +
+      JSON.stringify(translateBtn.textContent));
+}
+// These ids come from the raw HTML only: if the fixture hands them back as
+// real nodes, the harness lies about the page it serves.
+check(!optimizeBtn && !translateBtn,
+  'the rewrite buttons are shipped today; the harness no longer matches the page');
+
+/* 7e. the offer of a job is fetched once, kept in this browser, and named for
+      as long as it stays: the URL goes out, the text comes back and is stored,
+      and the clear button unties the CV from it again */
+const jobUrl = document.getElementById('ia-url');
+check(!!jobUrl, 'no URL field for the offer');
+jobUrl.value = 'https://emplois.exemple.fr/annonce/123';
+document.getElementById('ia-job').click();
+await new Promise((r) => setTimeout(r, 100));
+const savedOffer = JSON.parse(localStorage.getItem('atscv.offer.v1') || 'null');
+check(!!savedOffer && savedOffer.title === 'Ingénieure Go',
+  'the fetched offer is not kept in this browser: ' + JSON.stringify(savedOffer));
+const offerLine = document.getElementById('ia-offer');
+check((offerLine.textContent || '').indexOf('Ingénieure Go') >= 0 && !offerLine.hidden,
+  'the saved offer is not named in the panel: ' + JSON.stringify(offerLine.textContent));
+check(document.getElementById('ia-offer-clear').hidden === false,
+  'no way to retire the saved offer');
+document.getElementById('ia-offer-clear').click();
+await new Promise((r) => setTimeout(r, 100));
+check(localStorage.getItem('atscv.offer.v1') === null,
+  'the stored offer survived its own clear button');
+check(document.getElementById('ia-offer').hidden === true,
+  'the offer line stayed visible after the clear');
+
 if (reportTab) reportTab.click(); // leave the editor on a panel the rest reads
 
 check(document.getElementById('name-field').value === 'Jeanne Rousseau',

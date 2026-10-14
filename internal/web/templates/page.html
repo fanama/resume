@@ -138,10 +138,28 @@
     <div class="tabpanel" id="panel-ia" role="tabpanel">
       <div class="ia-controls">
         <button type="button" id="ia-run">Analyser le CV</button>
-        <button type="button" id="ia-optimize">Optimiser le contenu</button>
-        <button type="button" id="ia-translate">Traduire le CV</button>
+        <!-- <button type="button" id="ia-optimize">Optimiser le contenu</button> -->
+        <!-- <button type="button" id="ia-translate">Traduire le CV</button> -->
         <span class="ia-spinner" id="ia-spinner" hidden aria-hidden="true"></span>
         <span id="ia-status" class="muted" role="status" aria-live="polite"></span>
+      </div>
+      <!--
+        The offer block: a URL pasted here is fetched by the server, because a
+        browser would stop at the CORS wall of every job board it tried to
+        read directly. Only the URL leaves this page — the resume never rides
+        along — and the readable text of the offer is kept in this browser's
+        storage, beside the draft. The next run of the analysis reads it, so
+        its answer is a comparison and not a review in the dark.
+      -->
+      <div class="ia-offer">
+        <label class="ia-offer-label" for="ia-url">Offre d’emploi à comparer au CV</label>
+        <div class="ia-offer-controls">
+          <input type="url" id="ia-url" spellcheck="false" autocomplete="off" placeholder="https://exemple.fr/annonce">
+          <button type="button" id="ia-job">Récupérer l’offre</button>
+        </div>
+        <p class="muted" id="ia-offer" hidden></p>
+        <button type="button" id="ia-offer-clear" class="danger" hidden>Retirer l’offre enregistrée</button>
+        <p class="muted ia-offer-hint">La page de l’offre est récupérée par le serveur et gardée dans ce navigateur : la prochaine analyse comparera le CV à cette offre.</p>
       </div>
       <!--
         The bar only appears while the model is being downloaded — the one

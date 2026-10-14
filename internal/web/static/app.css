@@ -517,6 +517,17 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 .ia-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 #ia-out { margin-top: 12px; }
 
+/* The offer block sits between the run buttons and the panel: the URL of an
+   offer and its fetched text. The input follows the ordinary text rule, and
+   the saved-offer line is the one sentence the reader keeps seeing. */
+.ia-offer { margin-top: 12px; display: flex; flex-direction: column; gap: 8px; }
+.ia-offer-label { font-weight: 700; color: var(--accent); }
+.ia-offer-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#ia-url { flex: 1 1 16rem; min-width: 0; }
+#ia-offer { margin: 0; }
+.ia-offer-hint { margin: 0; }
+#ia-offer-clear { align-self: flex-start; }
+
 /* The spinner marks every phase the reader waits for: engine, download,
    generation. Its own display must be restated on [hidden], or this rule
    would beat the browser's display:none and the spinner never hide. */

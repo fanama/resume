@@ -168,6 +168,10 @@ func (s *Server) routes() {
 	s.mux.HandleFunc("POST /api/text", s.handleText)
 	s.mux.HandleFunc("POST /api/tex", s.handleTex)
 	s.mux.HandleFunc("POST /api/render/{format}", s.handleRender)
+	// The offer of a job the draft is aimed at. The resume never rides along:
+	// only the URL is sent, and what comes back keeps being the offer, in the
+	// browser's own storage.
+	s.mux.HandleFunc("POST /api/job", s.handleJob)
 	s.mux.HandleFunc("GET /api/schema", s.handleSchema)
 	s.mux.HandleFunc("GET /healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
