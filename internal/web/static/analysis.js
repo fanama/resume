@@ -1,7 +1,9 @@
 /* The analysis panel: a review of the resume written by a small language model
-   that runs in the browser itself, through WebLLM and WebGPU — and two things
-   the same model can do with the resume afterwards: rewrite its content, and
-   translate it into the other language the tool supports.
+   that runs in the browser itself, through WebLLM and WebGPU — and the things
+   the same model can do with the resume afterwards: rewrite its content,
+   translate it into the other language the tool supports, and rehearse an
+   interview on it. The rewrites open a new version of the CV; the review and
+   the interview write their text below the buttons.
 
    Three properties shape this file. The engine is 6.6 Mo of JavaScript and the
    model is 1.4 Go of weights, so both are fetched the first time a button is
@@ -50,6 +52,9 @@
   const run = document.getElementById('ia-run');
   const optimize = document.getElementById('ia-optimize');
   const translate = document.getElementById('ia-translate');
+  // The interview rehearsal: questions drawn from what the CV actually says,
+  // and from the saved offer when there is one.
+  const sim = document.getElementById('ia-simulate');
   // The offer of the job the draft is aimed at: one input, one fetch button,
   // one line that keeps naming the offer the analyses will read beside the
   // resume, and the button that unties them.
@@ -77,14 +82,14 @@
   const progress = document.getElementById('ia-progress');
   const bar = document.getElementById('ia-bar');
   const pct = document.getElementById('ia-pct');
-  // The three actions. Optimize and translate may be commented out of the
-  // page — they are today — and the panel must survive that: a missing
-  // optional button removes a feature, it must not leave the others dead.
+  // The four actions. The optional ones may be commented out of the page —
+  // and the panel must survive that: a missing optional button removes a
+  // feature, it must not leave the others dead.
   // The elements every listener needs are the required ones, never optional.
   // The provider block is not among them: a page without it just loses the
-  // custom provider and keeps the local model, the way it loses optimize
+  // custom provider and keeps the local model, the way it loses a rewrite
   // without its button.
-  const buttons = [run, optimize, translate, jobRun].filter(Boolean);
+  const buttons = [run, optimize, translate, sim, jobRun].filter(Boolean);
   if (!run || !statusNode || !out || !dataField ||
       !spinner || !progress || !bar || !pct ||
       !jobRun || !jobUrl || !offerLine || !offerClear) return;
@@ -322,6 +327,98 @@
     if (tab.dataset.tab === 'ia') tab.addEventListener('click', updateTranslateLabel);
   }
   updateTranslateLabel();
+
+  /* readCV hands the draft to the server the way a parser reads it — the
+     same order of reading the plain-text panel shows — or explains why it
+     cannot. Answers the text, or null with the status line set. */
+  const readCV = async () => {
+    spin(true);
+    status(label('Lecture du CV…', 'Reading the CV…'), 'waiting');
+    const res = await fetch('/api/text?format=json', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: dataField.value,
+    });
+    if (!res.ok) {
+      const body = await res.json().catch(() => ({}));
+      status(body.error || draftError(), 'error');
+      return null;
+    }
+    const text = await res.text();
+    if (!text.trim()) {
+      status(label('Le CV est vide.', 'The CV is empty.'), 'error');
+      return null;
+    }
+    return text;
+  };
+
+  /* streamAnswer runs one plain-text turn through startChat and streams it
+     into the panel; the two free-text actions — the review and the interview
+     simulation — share it. Answers the text, or '' when the model returned
+     nothing (the status then still says so, set by the caller). */
+  const streamAnswer = async (messages, params, waitLabel) => {
+    spin(true);
+    status(waitLabel, 'waiting');
+    showOut('');
+    const started = Date.now();
+    const stream = await startChat(messages, params);
+    let answer = '';
+    for await (const choice of stream) {
+      const piece = choice && choice.delta && choice.delta.content;
+      if (piece) {
+        answer += piece;
+        out.textContent = answer;
+      }
+    }
+    outDone();
+    if (!answer.trim()) {
+      out.hidden = true;
+      return '';
+    }
+    const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
+    status(label('Réponse en ', 'Answer in ') + seconds + ' s');
+    return answer;
+  };
+
+  /* interviewMessages builds the rehearsal: the questions a recruiter of the
+     practicable offer would ask, all drawn from what the CV says — nothing
+     invented — plus what each answer must prove. With an offer stored, the
+     simulation targets it; without one, it stays a general interview. */
+  const interviewMessages = (text, offer) => {
+    let intro =
+      'Voici le CV, tel qu\'un parseur le lit :\n\n' + text + '\n\n';
+    let scope =
+      '- 6 questions au total : 2 sur le parcours, 2 techniques directement ' +
+      'tirées du CV, 2 mises en situation.\n';
+    if (offer && offer.text) {
+      intro +=
+        'Le CV vise l\'offre ci-dessous' +
+        (offer.title ? ' (« ' + offer.title + ' »)' : '') +
+        ' :\n\n' + String(offer.text).slice(0, 8000) + '\n\n';
+      scope =
+        '- 6 questions au total : 2 sur le parcours, 2 techniques tirées du ' +
+        'CV au regard de l\'offre, 2 mises en situation propres au poste.\n';
+    }
+    return [
+      {
+        role: 'system',
+        content:
+          'Tu es un recruteur senior qui mène un entretien réaliste et exigeant, ' +
+          'orienté ATS et poste visé. Tu poses des questions précises, bref, ' +
+          'et tu expliques ce que chaque réponse doit montrer.',
+      },
+      {
+        role: 'user',
+        content:
+          intro +
+          'Génère une simulation d\'entretien pour ce CV, dans la langue du CV :\n' +
+          scope +
+          '- Numérote chaque question, et fais-la suivre d\'une ligne « ce que la réponse doit montrer ».\n' +
+          '- Base-toi uniquement sur ce que le CV dit : ni fait, ni chiffre inventé.\n' +
+          '250 mots au maximum.',
+      },
+    ];
+  };
 
   /* The prompts. The review reads what a parser reads; the two rewrites get
      the JSON itself, because JSON in, JSON out is the only exchange where the
@@ -703,43 +800,16 @@
       // provider configured is a page that works without it.
       if (!llm && !hasWebGPU()) return refusal();
 
-      spin(true);
-      status(label('Lecture du CV…', 'Reading the CV…'), 'waiting');
-      const res = await fetch('/api/text?format=json', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: dataField.value,
-      });
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        return status(body.error || draftError(), 'error');
-      }
-      const text = await res.text();
-      if (!text.trim()) {
-        return status(label('Le CV est vide.', 'The CV is empty.'), 'error');
-      }
+      const text = await readCV();
+      if (!text) return;
 
       phase = 'chat';
-      spin(true);
-      status(label('Analyse en cours…', 'Analysing…'), 'waiting');
-      showOut('');
-      const started = Date.now();
-      const stream = await startChat(reviewMessages(text, loadOffer()), {
+      const answer = await streamAnswer(reviewMessages(text, loadOffer()), {
         temperature: 0.7,
         top_p: 0.95,
         max_tokens: 700,
-      });
-      let answer = '';
-      for await (const choice of stream) {
-        const piece = choice && choice.delta && choice.delta.content;
-        if (piece) {
-          answer += piece;
-          out.textContent = answer;
-        }
-      }
-      outDone();
-      if (!answer.trim()) {
-        out.hidden = true;
+      }, label('Analyse en cours…', 'Analysing…'));
+      if (!answer) {
         return status(label(
           'Le modèle n\'a rien renvoyé : réessayez.',
           'The model returned nothing: try again.'
@@ -748,8 +818,46 @@
       // Kept: « Appliquer les améliorations » will apply exactly what was
       // proposed here.
       lastReview = answer;
-      const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
-      status(label('Réponse en ', 'Answer in ') + seconds + ' s');
+    } catch (err) {
+      if (phase === 'chat') engine = null;
+      out.hidden = true;
+      outDone();
+      status(label('Erreur : ', 'Error: ') + ((err && err.message) || String(err)), 'error');
+    } finally {
+      spin(false);
+      downloadOff();
+      setBusy(false);
+    }
+  };
+
+  /* runSimulation writes the interview rehearsal: the same reading and gates
+     as the review, its own prompt — and nothing ever enters the editor. It
+     is a rehearsal, written for the reader to answer out loud. */
+  const runSimulation = async () => {
+    setBusy(true);
+    out.hidden = true;
+    out.textContent = '';
+    outDone();
+    spin(false);
+    downloadOff();
+    status('');
+    let phase = 'text';
+    try {
+      if (!llm && !hasWebGPU()) return refusal();
+      const text = await readCV();
+      if (!text) return;
+      phase = 'chat';
+      const answer = await streamAnswer(interviewMessages(text, loadOffer()), {
+        temperature: 0.8,
+        top_p: 0.95,
+        max_tokens: 700,
+      }, label('Simulation de l\'entretien…', 'Simulating the interview…'));
+      if (!answer) {
+        return status(label(
+          'Le modèle n\'a rien renvoyé : réessayez.',
+          'The model returned nothing: try again.'
+        ), 'error');
+      }
     } catch (err) {
       if (phase === 'chat') engine = null;
       out.hidden = true;
@@ -1002,6 +1110,8 @@
   // in the other language — neither touches the session under the editor.
   if (optimize) optimize.addEventListener('click', () => rewrite('optimize'));
   if (translate) translate.addEventListener('click', () => rewrite('translate'));
+  // The rehearsal: written here, never into the editor.
+  if (sim) sim.addEventListener('click', () => runSimulation());
   // The offer: fetch on click or on Enter, clear on the clear button, and the
   // saved line restored exactly where it was when the panel is opened again.
   jobRun.addEventListener('click', () => fetchOfferJob());

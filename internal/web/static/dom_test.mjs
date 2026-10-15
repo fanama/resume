@@ -717,6 +717,35 @@ check(!!appliedOpt && appliedOpt.data && appliedOpt.data.lang === 'en',
 check(!!appliedOpt && (appliedOpt.name || '').indexOf('optimisé') >= 0,
   'the optimized version is not named as one: ' + JSON.stringify(appliedOpt && appliedOpt.name));
 
+/* 7i. « Simuler l’entretien » — the questions are drawn from what the CV says
+      (and from the saved offer when there is one), streamed in like every
+      other free-text run, and nothing is applied to the editor. */
+const simButton = document.getElementById('ia-simulate');
+check(!!simButton, 'no interview simulation button in the panel');
+providerReplies.push(
+  'data: {"choices":[{"delta":{"content":"1. Entretien simulé"},"finish_reason":"stop"}]}\n\n' +
+  'data: [DONE]\n\n'
+);
+simButton.click();
+await new Promise((r) => setTimeout(r, 100));
+const simCall = lastChat && lastChat.body ? JSON.parse(lastChat.body) : null;
+check(!!simCall && Array.isArray(simCall.messages) && simCall.messages.length >= 2,
+  'the simulation did not send a conversation');
+check(!!simCall && (simCall.messages[1].content || '').indexOf('simulation d\'entretien') >= 0,
+  'the simulation prompt does not ask for an interview: ' +
+    JSON.stringify(simCall && simCall.messages &&
+      simCall.messages.map((m) => String(m.content || '').slice(0, 60))));
+check(!!simCall && simCall.response_format === undefined,
+  'a free-text run was constrained by the resume grammar');
+check((document.getElementById('ia-out').textContent || '').indexOf('Entretien simulé') >= 0,
+  'the interview questions did not reach the panel: ' +
+    JSON.stringify(document.getElementById('ia-out').textContent));
+const sessionsAfterSim = sessionsOf();
+check(sessionsAfterSim.sessions.length === afterOptimize.sessions.length,
+  'the simulation wrote into the editor: ' + JSON.stringify(sessionsAfterSim.sessions.length));
+check(simButton.disabled === false,
+  'the simulation button stayed disabled after the run');
+
 if (reportTab) reportTab.click(); // leave the editor on a panel the rest reads
 
 check(document.getElementById('name-field').value === 'Jeanne Rousseau',

@@ -138,20 +138,23 @@
     <div class="tabpanel" id="panel-ia" role="tabpanel">
       <div class="ia-controls">
         <!--
-          The three actions of the panel. « Analyser » reads the CV and writes
+          The four actions of the panel. « Analyser » reads the CV and writes
           advice below it; « Appliquer » opens a new version (a new session)
           with the improvements applied — guided by the last analysis when one
-          ran; « Traduire » opens a new version in the other language. Neither
-          rewrite touches the session under the editor: the original stays.
+          ran; « Traduire » opens a new version in the other language;
+          « Simuler » writes an interview rehearsed on the CV — and on the saved
+          offer, when there is one. No rewrite action touches the session under
+          the editor: the original stays.
         -->
         <div class="ia-actions">
           <button type="button" id="ia-run" class="primary">Analyser le CV</button>
           <button type="button" id="ia-optimize" class="secondary" title="Ouvre une nouvelle version du CV avec les améliorations appliquées">Appliquer les améliorations IA</button>
           <button type="button" id="ia-translate" class="secondary" title="Ouvre une nouvelle version du CV traduite">Traduire le CV</button>
+          <button type="button" id="ia-simulate" class="secondary" title="Génère des questions d’entretien d’après le CV et l’offre enregistrée">Simuler l’entretien</button>
           <span class="ia-spinner" id="ia-spinner" hidden aria-hidden="true"></span>
         </div>
         <span id="ia-status" class="muted" role="status" aria-live="polite"></span>
-        <p class="muted ia-controls-hint">« Analyser » écrit ses conseils ici ; « Appliquer » et « Traduire » ouvrent une nouvelle version du CV — l’originale reste intacte. Le CV ne quitte la page que si vous nommez un fournisseur ci-dessous.</p>
+        <p class="muted ia-controls-hint">« Analyser » et « Simuler » écrivent ici ; « Appliquer » et « Traduire » ouvrent une nouvelle version du CV — l’originale reste intacte. Le CV ne quitte la page que si vous nommez un fournisseur ci-dessous.</p>
       </div>
       <p class="empty" id="ia-note">Analyse locale avec un modèle MiniCPM exécuté par WebGPU dans ce navigateur : le CV ne quitte jamais la machine. Premier lancement : téléchargement d’environ 1,4 Go, mis en cache ensuite.</p>
       <!--

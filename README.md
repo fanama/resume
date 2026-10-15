@@ -606,6 +606,12 @@ est lisible par quiconque ouvre le même profil. Et le CV, dans ce mode, va où
 votre URL le porte — le contrat du panneau en tenant compte : reliez le CV à un
 fournisseur de confiance.
 
+L'onglet propose aussi **« Simuler l'entretien »** : le modèle rédige six
+questions d'entretien tirées du CV — parcours, technique, mise en situation —
+et, quand une offre est enregistrée, ancrées sur le poste visé. Chaque
+question est suivie de la ligne « ce que la réponse doit montrer ». Rien de
+cette répétition n'entre dans l'éditeur : c'est un texte à lire à voix haute.
+
 Deux actions vont plus loin que la relecture, avec le même garde-fou que
 l'import : **« Appliquer les améliorations IA »** réécrit le CV — d'abord en
 appliquant les suggestions de la dernière analyse lancée, quand il y en a une

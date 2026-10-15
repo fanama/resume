@@ -76,6 +76,7 @@ func TestPageServesTheShell(t *testing.T) {
 		`id="schema-target"`, `id="data"`,
 		`hx-post="/api/preview"`, `hx-post="/api/lint"`, `hx-post="/api/text"`, `hx-post="/api/tex"`,
 		`data-tab="ia"`, `id="ia-run"`, `id="ia-out"`, `id="ia-spinner"`, `id="ia-bar"`,
+		`id="ia-simulate"`,
 		`id="ia-url"`, `id="ia-job"`, `id="ia-offer"`, `id="ia-offer-clear"`,
 		`id="ia-provider-url"`, `id="ia-provider-model"`, `id="ia-provider-key"`,
 		`id="ia-provider-save"`, `id="ia-provider-clear"`,
