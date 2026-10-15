@@ -307,6 +307,71 @@
   };
   const outDone = () => out.classList.remove('is-streaming');
 
+  /* mdInline writes one line's text with its bold and its inline code — the
+     two in-line marks a resume review actually uses. The split is a plain
+     scan: what the marks wrap becomes <strong> or <code>, what they wrap it
+     in is textContent — no mark ever reaches the DOM as markup. */
+  const mdInline = (parent, text) => {
+    const parts = String(text).split(/(\*\*[^*]+\*\*|`[^`]+`)/);
+    for (let i = 0; i < parts.length; i += 1) {
+      if (i % 2 === 0) {
+        if (parts[i]) parent.appendChild(document.createTextNode(parts[i]));
+      } else if (parts[i].charCodeAt(0) === 42) { // '*' — bold
+        const strong = document.createElement('strong');
+        strong.textContent = parts[i].slice(2, -2);
+        parent.appendChild(strong);
+      } else { // '`' — inline code
+        const code = document.createElement('code');
+        code.textContent = parts[i].slice(1, -1);
+        parent.appendChild(code);
+      }
+    }
+  };
+
+  /* renderAnswer writes the model's answer the way it was meant to be read:
+     its rubric headings as headings, its numbered rubrics as a list, each
+     line a paragraph — not a wall of markdown symbols. The parse is
+     deliberately small — headings, the two lists, bold and inline code are
+     all a review or a rehearsal writes — and deliberately safe: every node
+     starts empty, children come from createElement, text from textContent;
+     innerHTML is nowhere in this file, and nothing the model writes is ever
+     parsed as markup. A line that matches nothing is a paragraph, so a
+     format the parser does not know still shows, whole. */
+  const renderAnswer = (container, source) => {
+    container.classList.add('ia-md');
+    container.classList.remove('plaintext');
+    while (container.firstChild) container.firstChild.remove();
+    let list = null; // the list the current line appends to, if any
+    for (const rawLine of String(source || '').split('\n')) {
+      const line = rawLine.trim();
+      const hash = /^#{1,6}\s+/.exec(line);
+      const number = /^\d+[.)]\s+/.exec(line);
+      const dash = /^[-*]\s+/.exec(line);
+      if (hash) {
+        list = null;
+        const heading = document.createElement(
+          line.match(/^#+/)[0].length <= 2 ? 'h3' : 'h4'
+        );
+        mdInline(heading, line.slice(hash[0].length));
+        container.appendChild(heading);
+      } else if (number || dash) {
+        const tag = number ? 'ol' : 'ul';
+        if (!list || list.tagName !== tag.toUpperCase()) {
+          list = document.createElement(tag);
+          container.appendChild(list);
+        }
+        const item = document.createElement('li');
+        mdInline(item, line.slice((number || dash)[0].length));
+        list.appendChild(item);
+      } else if (line) {
+        list = null;
+        const paragraph = document.createElement('p');
+        mdInline(paragraph, line);
+        container.appendChild(paragraph);
+      } // a blank line is the air between the blocks: nothing to append
+    }
+  };
+
   const hasWebGPU = () => typeof navigator !== 'undefined' && Boolean(navigator.gpu);
 
   /* What the buttons say the translation will do, decided from the language
@@ -367,7 +432,7 @@
       const piece = choice && choice.delta && choice.delta.content;
       if (piece) {
         answer += piece;
-        out.textContent = answer;
+        renderAnswer(out, answer); // prettified as it arrives, not after
       }
     }
     outDone();
@@ -943,6 +1008,10 @@
     setBusy(true);
     out.hidden = true;
     out.textContent = '';
+    // The rewrite streams the raw document, not prose: back to the plain-text
+    // look a previous pretty answer may have taken off the container.
+    out.classList.add('plaintext');
+    out.classList.remove('ia-md');
     outDone();
     spin(false);
     downloadOff();

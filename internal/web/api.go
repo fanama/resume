@@ -27,6 +27,13 @@ type input struct {
 	layout *layout.Layout
 	lang   model.Lang
 	name   string
+	// style carries the look the request asked for: an empty field keeps
+	// the server's option, a filled one names its own accent, font or size.
+	// They ride the same request as the data, so a scripted curl call and the
+	// editor ask for the same thing, and no style lives on the server.
+	accent   string
+	font     string
+	fontSize float64
 }
 
 // readInput decodes the resume from the request. The payload is either a form
@@ -61,9 +68,39 @@ func (s *Server) readInput(w http.ResponseWriter, r *http.Request) (input, error
 	if lang == "" {
 		lang = s.opts.Lang
 	}
+	// The look overrides the request names. Dates change the layout itself, so
+	// they are read before it is built; the rest ride beside the layout.
+	dates := s.opts.DateFormat
+	if q := styleParam(r, "dates"); q != "" {
+		df, ok := documentDates[q]
+		if !ok {
+			return input{}, fmt.Errorf("unknown date format %q, want numeric, month or year", q)
+		}
+		dates = df
+	}
+	accent, err := styleAccent(r)
+	if err != nil {
+		return input{}, err
+	}
+	font := ""
+	if q := styleParam(r, "font"); q != "" {
+		family, ok := documentFonts[q]
+		if !ok {
+			return input{}, fmt.Errorf("unknown font %q, want calibri, arial or times", q)
+		}
+		font = family
+	}
+	size := 0.0
+	if q := styleParam(r, "size"); q != "" {
+		v, err := strconv.ParseFloat(q, 64)
+		if err != nil || v < 6 || v > 24 {
+			return input{}, fmt.Errorf("invalid font size %q, want a number between 6 and 24", q)
+		}
+		size = v
+	}
 	l := layout.New(resume, layout.Options{
 		Lang:            lang,
-		DateFormat:      s.opts.DateFormat,
+		DateFormat:      dates,
 		StripDiacritics: isOn(r.PostFormValue("ascii")),
 		SectionRules:    s.opts.SectionRules,
 	})
@@ -71,10 +108,50 @@ func (s *Server) readInput(w http.ResponseWriter, r *http.Request) (input, error
 	if name == "" {
 		name = resume.Name
 	}
-	return input{resume: resume, layout: l, lang: lang, name: sanitizeFilename(name)}, nil
+	return input{resume: resume, layout: l, lang: lang, name: sanitizeFilename(name), accent: accent, font: font, fontSize: size}, nil
 }
 
 func isOn(v string) bool { return v == "on" || v == "true" || v == "1" }
+
+// documentFonts are the typefaces the editor may ask for. The list is the set
+// an ATS reads without complaint and both renderers can name: one option value
+// speaks to the PDF and to the DOCX with the same word.
+var documentFonts = map[string]string{
+	"calibri": "Calibri",
+	"arial":   "Arial",
+	"times":   "Times New Roman",
+}
+
+// documentDates are the period formats the layout knows, spelled as the CLI
+// does: the editor and the command line offer the same list.
+var documentDates = map[string]layout.DateFormat{
+	"numeric": layout.DateNumeric,
+	"month":   layout.DateMonthName,
+	"year":    layout.DateYear,
+}
+
+// styleParam reads one document-style override the request names. The editor's
+// form sends it in the body, a scripted call puts it in the query — FormValue
+// answers both. Empty means "the server's own": the look is owned only where
+// somebody typed one.
+func styleParam(r *http.Request, key string) string {
+	return strings.TrimSpace(r.FormValue(key))
+}
+
+// styleAccent validates the accent colour the request names and hands it back
+// normalized, so a #rrggbb typed in the browser reaches the renderers the way
+// an operator's flag would.
+func styleAccent(r *http.Request) (string, error) {
+	q := styleParam(r, "accent")
+	if q == "" {
+		return "", nil
+	}
+	rgb, err := parseAccent(q)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%02X%02X%02X", rgb.R, rgb.G, rgb.B), nil
+}
 
 // sanitizeFilename keeps a user supplied name safe to put in a
 // Content-Disposition header and in a file the browser saves: letters and
@@ -256,8 +333,8 @@ func (s *Server) texOptions(in input) tex.Options {
 	return tex.Options{
 		Lang:         in.layout.OptsLang(),
 		SectionRules: s.opts.SectionRules,
-		Accent:       s.opts.Accent,
-		FontSize:     s.opts.FontSize,
+		Accent:       or(in.accent, s.opts.Accent),
+		FontSize:     sizeOr(in.fontSize, s.opts.FontSize),
 	}
 }
 
@@ -349,6 +426,23 @@ func extensionFor(format string) string {
 	}
 }
 
+// or keeps the server's option wherever the request left the choice empty: an
+// override speaks only where it named something.
+func or(requested, server string) string {
+	if requested != "" {
+		return requested
+	}
+	return server
+}
+
+// sizeOr is or for the body size, where the "unset" value is the zero.
+func sizeOr(requested, server float64) float64 {
+	if requested != 0 {
+		return requested
+	}
+	return server
+}
+
 // renderBytes produces a document in memory with the same options as the CLI,
 // so a download from the browser is the file the command line would have
 // written.
@@ -357,9 +451,9 @@ func (s *Server) renderBytes(format string, in input) ([]byte, string, error) {
 	switch format {
 	case "docx":
 		opts := docx.Options{
-			FontFamily:   "Calibri",
-			FontSize:     s.opts.FontSize,
-			SectionColor: s.opts.Accent,
+			FontFamily:   or(in.font, "Calibri"),
+			FontSize:     sizeOr(in.fontSize, s.opts.FontSize),
+			SectionColor: or(in.accent, s.opts.Accent),
 			SectionRules: s.opts.SectionRules,
 			LangTag:      langTag(in.lang),
 			Author:       resume.Name,
@@ -372,14 +466,14 @@ func (s *Server) renderBytes(format string, in input) ([]byte, string, error) {
 		}
 		return buf.Bytes(), docxContentType, nil
 	case "pdf":
-		rgb, err := parseAccent(s.opts.Accent)
+		rgb, err := parseAccent(or(in.accent, s.opts.Accent))
 		if err != nil {
 			return nil, "", err
 		}
 		opts := pdf.Options{
-			FontFamily:   "Arial",
+			FontFamily:   or(in.font, "Arial"),
 			FontDir:      s.opts.FontDir,
-			FontSize:     s.opts.FontSize,
+			FontSize:     sizeOr(in.fontSize, s.opts.FontSize),
 			SectionColor: rgb,
 			SectionRules: s.opts.SectionRules,
 			DimColor:     pdf.RGB{R: 0x40, G: 0x40, B: 0x40},

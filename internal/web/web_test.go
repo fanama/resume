@@ -82,6 +82,10 @@ func TestPageServesTheShell(t *testing.T) {
 		`id="ia-provider-save"`, `id="ia-provider-clear"`,
 		`id="ia-optimize"`, `id="ia-translate"`,
 		`href="/api/style.css?accent=1F3864`,
+		// The style card: the look the reader owns, sent beside the data.
+		`id="cv-style-accent"`, `id="cv-style-font"`, `id="cv-style-size"`,
+		`id="cv-style-dates"`, `id="cv-style-reset"`,
+		`name="accent"`, `name="font"`, `name="size"`, `name="dates"`,
 	} {
 		if !strings.Contains(body, want) {
 			t.Errorf("the page is missing %q", want)
@@ -1130,11 +1134,141 @@ func TestTouchTargetsAreSizedForFingers(t *testing.T) {
 	if regexp.MustCompile(`\.masthead nav\s*\{[^}]*display:\s*none`).MatchString(home) {
 		t.Error("the landing page hides its navigation on a phone, leaving no way to reach the sections")
 	}
+	// The provider card opens from its summary alone: one tap target like a
+	// button, or the reader's every unfold is a precision strike.
+	appCSS := get(t, testServer(t), "/static/app.css").Body.String()
+	coarse := regexp.MustCompile(`(?s)@media \(pointer: coarse\) \{(.*?)
+\}`).FindString(appCSS)
+	if coarse == "" {
+		t.Fatal("the coarse-pointer block is gone")
+	}
+	if !strings.Contains(coarse, "summary") {
+		t.Error("the provider summary is not in the touch rules: opening it stays finger-unfriendly")
+	}
+}
+
+// TestTheThemeFollowsTheSystem guards the two palettes. The light one is the
+// base — mobile first — and the dark one lives in one prefers-color-scheme
+// block that only rebinding the variables: no rule of the layout repeats
+// there, so a theme cannot drift into a second stylesheet nobody maintains.
+// The chrome and the document also have to speak different words: the UI accent
+// may re-theme with the system, the document accent is the CV reader's own, so
+// the block must not touch --accent itself.
+func TestTheThemeFollowsTheSystem(t *testing.T) {
+	// app.css owns both palettes; home.css loads it first on purpose and adds
+	// only layout, so one dark block serves both pages and cannot drift.
+	app := get(t, testServer(t), "/static/app.css").Body.String()
+	m := regexp.MustCompile(`(?s)@media \(prefers-color-scheme: dark\) \{(.*?)\n\}`).FindString(app)
+	if m == "" {
+		t.Fatalf("app.css has no dark palette: a dark system renders unreadable chrome")
+	}
+	for _, want := range []string{"--panel", "--ink", "--line", "--ui-accent"} {
+		if !strings.Contains(m, want) {
+			t.Errorf("the dark palette misses %s: the theme would be half-dressed", want)
+		}
+	}
+	if strings.Contains(m, "--accent:") {
+		t.Error("the dark palette overwrites --accent: the document colour is the reader's, not the theme's")
+	}
+	// The chrome must read the theme accent, not the document one, or a dark
+	// night would paint a deep navy on a deep ground.
+	btn := regexp.MustCompile(`(?s)button\.primary \{(.*?)\}`).FindString(app)
+	if !strings.Contains(btn, "var(--ui-accent)") || !strings.Contains(btn, "var(--on-accent)") {
+		t.Error("the primary button does not answer the theme accent: dark mode breaks it")
+	}
+	// The other sheet may not re-paint over the palette: it owns layout only.
+	home := get(t, testServer(t), "/static/home.css").Body.String()
+	if strings.Contains(home, "prefers-color-scheme") || strings.Contains(home, ":root") {
+		t.Error("home.css reaches into theming: the two palettes live in app.css alone")
+	}
+}
+
+// TestTheStyleRidesTheRequest is the wiring guard for the style card: the four
+// fields the editor names are the same four answers the render endpoints
+// accept, invalid answers are refused rather than silently ignored, and the
+// date format one names really reaches the layout the text is written from.
+func TestTheStyleRidesTheRequest(t *testing.T) {
+	s := testServer(t)
+
+	styled := func(query string) *httptest.ResponseRecorder {
+		form := url.Values{"data": {`{"name":"Jean","experience":[{"title":"Ingénieur","company":"Acme","location":"Paris","start":"2022-03","end":"2022-08","highlights":["A fait le déployé."],"stack":["Go"]}]}`}}
+		req := httptest.NewRequest(http.MethodPost, "/api/render/txt?"+query, strings.NewReader(form.Encode()))
+		req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
+		rec := httptest.NewRecorder()
+		s.Handler().ServeHTTP(rec, req)
+		return rec
+	}
+
+	// An unstyled ask still answers, and the numeric dates the server defaults
+	// to are what the layout writes.
+	if rec := styled(""); rec.Code != http.StatusOK {
+		t.Fatalf("the plain ask was refused: %d %s", rec.Code, rec.Body)
+	}
+	if rec := styled("dates=month"); rec.Code != http.StatusOK ||
+		!strings.Contains(rec.Body.String(), "mars 2022") {
+		t.Errorf("dates=month did not reach the layout: %d %s", rec.Code, rec.Body)
+	}
+	if rec := styled("accent=%23FF8800&size=12&font=times"); rec.Code != http.StatusOK {
+		t.Errorf("a styled ask was refused: %d %s", rec.Code, rec.Body)
+	}
+	for _, bad := range []string{"dates=heures", "font=comic", "accent=zzz", "accent=12345", "size=99", "size=-2"} {
+		if rec := styled(bad); rec.Code != http.StatusBadRequest {
+			t.Errorf("%q answered %d: a style the server cannot name must be refused", bad, rec.Code)
+		}
+	}
 }
 
 func atoiOrZero(s string) int {
 	n, _ := strconv.Atoi(s)
 	return n
+}
+
+// TestTheHomeCarriesTheProof is the vitrine guard: the home page argues with
+// evidence, and the modernisation was not allowed to argue otherwise. The hero
+// ships the product drawn in CSS alone — a rendered CV and its lint verdict —
+// the long background reads under native <details> folds that need no script,
+// and the reveal script is its own file: the policy allows no inline script,
+// and a vitrine that ships one would be a page the browser silently refuses.
+func TestTheHomeCarriesTheProof(t *testing.T) {
+	home := get(t, testServer(t), "/").Body.String()
+	for _, want := range []struct{ needle, why string }{
+		{`class="mock" role="img"`, "the hero argues with prose only: no rendered CV to prove the order claim"},
+		{`mock-cv`, "the mockup lost the rendered CV"},
+		{"sev-error", "the diagnostic lost its error finding: the verdict is one-sided"},
+		{"sev-warn", "the diagnostic lost its warning"},
+		{"<details class=\"more\">", "the long background is gone instead of folded: the page hungers either way"},
+		{`src="/static/home.js"`, "the reveal is stuck into the page, and the policy blocks where it stands"},
+		{`class="reveal"`, "the sections are not wired for the reveal the script drives"},
+	} {
+		if !strings.Contains(home, want.needle) {
+			t.Errorf("the home page is missing %s: %s", want.needle, want.why)
+		}
+	}
+	// No inline script on the vitrine, same rule as the editor shell.
+	for _, tag := range between(home, "<script", ">") {
+		if !strings.Contains(tag, "src=") {
+			t.Errorf("inline script on the home page: <script%s>", tag)
+		}
+	}
+	// The script itself is served, graceful, and does not mask anything by
+	// default: the hiding class is joined to the reveal, never to the content.
+	js := get(t, testServer(t), "/static/home.js").Body.String()
+	if !strings.Contains(js, "js-reveal") {
+		t.Error("the reveal script names no hiding class: the CSS and it disagree silently")
+	}
+	if !strings.Contains(js, "prefers-reduced-motion") {
+		t.Error("the reveal script ignores reduced motion: a reader who asked for calm gets movement")
+	}
+	if !strings.Contains(js, "IntersectionObserver") {
+		t.Error("the reveal script scrolls by hand instead of observing: every frame is a layout read")
+	}
+	css := get(t, testServer(t), "/static/home.css").Body.String()
+	if !strings.Contains(css, "html.js-reveal .reveal") {
+		t.Error("the hiding rule is not anchored to js-reveal: without the script the page would be blank")
+	}
+	if !strings.Contains(css, "html.js-reveal .reveal.is-in") {
+		t.Error("the reveal has no landing state: sections would stay translated and dim")
+	}
 }
 
 /* ------------------------------------------------------------------ /api/job */

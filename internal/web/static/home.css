@@ -24,7 +24,7 @@
   top: 12px;
   z-index: 20;
   background: var(--panel);
-  border: 2px solid var(--accent);
+  border: 2px solid var(--ui-accent);
   border-radius: var(--radius);
   padding: 8px 12px;
 }
@@ -76,7 +76,7 @@
   font-size: 14px;
   white-space: nowrap;
 }
-.masthead nav a:hover { color: var(--accent); }
+.masthead nav a:hover { color: var(--ui-accent); }
 
 /* ---- hero ---- */
 
@@ -91,7 +91,7 @@
   letter-spacing: 0.08em;
   font-size: 12px;
   font-weight: 700;
-  color: var(--accent);
+  color: var(--ui-accent);
 }
 
 .hero h1 {
@@ -129,13 +129,13 @@
   text-decoration: none;
   cursor: pointer;
 }
-.button:hover { border-color: var(--accent); color: var(--accent); }
+.button:hover { border-color: var(--ui-accent); color: var(--ui-accent); }
 .button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--on-accent);
 }
-.button.primary:hover { color: #fff; opacity: 0.92; }
+.button.primary:hover { color: var(--on-accent); opacity: 0.92; }
 
 .facts {
   list-style: none;
@@ -147,7 +147,7 @@
   color: var(--faint);
   font-size: 14px;
 }
-.facts b { color: var(--accent); font-size: 16px; }
+.facts b { color: var(--ui-accent); font-size: 16px; }
 
 /* ---- sections ---- */
 
@@ -178,7 +178,7 @@
 }
 
 .home p { margin-top: 0; }
-.home a { color: var(--accent); }
+.home a { color: var(--ui-accent); }
 
 .note {
   font-size: 14px;
@@ -226,12 +226,12 @@
 }
 .steps li {
   counter-increment: step;
-  border-top: 2px solid var(--accent);
+  border-top: 2px solid var(--ui-accent);
   padding-top: 12px;
 }
 .steps h3::before {
   content: counter(step) ". ";
-  color: var(--accent);
+  color: var(--ui-accent);
 }
 .steps p {
   margin: 0;
@@ -278,7 +278,7 @@
 .scale b { text-transform: uppercase; letter-spacing: 0.04em; font-size: 12px; }
 .sev-error { color: var(--error); }
 .sev-warn { color: var(--warn); }
-.sev-info { color: #5b7ba8; }
+.sev-info { color: var(--info); }
 
 /* ---- rules ---- */
 
@@ -302,7 +302,7 @@
   top: 8px;
   width: 12px;
   height: 2px;
-  background: var(--accent);
+  background: var(--ui-accent);
 }
 
 /* ---- table ----
@@ -327,10 +327,10 @@
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--faint);
-  border-bottom: 2px solid var(--accent);
+  border-bottom: 2px solid var(--ui-accent);
 }
 .home tbody, .home tr, .home th, .home td { display: block; width: auto; }
-.home tbody th { white-space: normal; color: var(--accent); padding-bottom: 0; border-bottom: 0; }
+.home tbody th { white-space: normal; color: var(--ui-accent); padding-bottom: 0; border-bottom: 0; }
 .home tbody td { color: var(--dim); padding-top: 3px; }
 .home tbody tr { border-bottom: 1px solid var(--line); padding: 10px 0; }
 .home tbody tr:last-child { border-bottom: 0; }
@@ -381,3 +381,102 @@
   .home tbody th { padding-bottom: 0; }
   .home tbody td { padding-top: 6px; }
 }
+
+/* ---- le mockup du hero ----
+   La preuve, dessinée en CSS pur : un CV papier et son diagnostic à côté.
+   Rien n'est une image et rien ne part d'ici : deux figures stylisées, mobile
+   empilées, côte à côte quand l'écran les porte. */
+
+.mock {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(0, 1fr);
+  margin: 0 0 30px;
+  max-width: calc(var(--measure) + 120px);
+}
+@media (min-width: 820px) {
+  .mock { grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr); align-items: start; }
+}
+.mock figure { margin: 0; }
+
+.mock-cv {
+  background: #fff;
+  color: #000;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 22px 24px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.07);
+  font-size: 13px;
+  line-height: 1.55;
+}
+.mock-name { font-weight: 700; font-size: 1.35em; letter-spacing: 0.03em; color: var(--accent); }
+.mock-headline { margin: 1px 0 0; color: #404040; }
+.mock-rule { border: 0; border-top: 2px solid var(--accent); margin: 8px 0 10px; }
+.mock-section {
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--accent);
+  font-weight: 700;
+  margin: 12px 0 3px;
+}
+.mock-entry { font-weight: 600; margin: 6px 0 0; }
+.mock-meta { display: block; font-weight: 400; color: var(--dim); font-size: 0.92em; }
+.mock-bullet { margin: 2px 0 0; color: #404040; }
+.mock-bullet::first-letter { padding-left: 0; }
+
+.mock-lint {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  box-shadow: 0 2px 14px rgba(0, 0, 0, 0.07);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.mock-score { margin: 0; font-size: 15px; color: var(--faint); }
+.mock-score b { font-size: 34px; font-weight: 700; color: var(--ok); line-height: 1; }
+.mock-finding {
+  margin: 0;
+  font-size: 13px;
+  color: var(--dim);
+  border-left: 3px solid var(--line);
+  padding: 3px 0 3px 10px;
+}
+.mock-finding b { text-transform: uppercase; letter-spacing: 0.04em; font-size: 11px; display: block; }
+.sev-error.mock-finding { border-left-color: var(--error); }
+.sev-warn.mock-finding { border-left-color: var(--warn); }
+.sev-info.mock-finding { border-left-color: var(--info); }
+.mock-finding.sev-error b { color: var(--error); }
+.mock-finding.sev-warn b { color: var(--warn); }
+.mock-finding.sev-info b { color: var(--info); }
+
+/* ---- apparitions au scroll ----
+   La page reste lisible si le script ne tourne pas : le masquage ne s'applique
+   que sous html.js-reveal, la classe que home.js pose quand l'observer existe.
+   prefers-reduced-motion désactive le mouvement côté script aussi. */
+html.js-reveal .reveal { opacity: 0; transform: translateY(14px); }
+html.js-reveal .reveal.is-in {
+  opacity: 1;
+  transform: none;
+  transition: opacity 0.45s ease, transform 0.45s ease;
+}
+
+/* ---- les plis ----
+   Le fond long se lit sur demande, du bout d'un details natif : nada de JS. */
+
+.more {
+  margin: 14px 0 0;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--subtle);
+  padding: 10px 14px;
+}
+.more summary {
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ui-accent);
+}
+.more[open] summary { margin-bottom: 6px; }
+.more p { margin: 0; }

@@ -14,13 +14,45 @@
   --dim: #404040;
   --faint: #595959;
   --line: #d9d9d9;
-  --bg: #f4f4f5;
+  --bg: #f5f4f1;
   --panel: #ffffff;
   --accent: #1f3864;
   --error: #b3261e;
   --warn: #8a5a00;
   --ok: #1b6b3a;
-  --radius: 6px;
+  --radius: 8px;
+  /* The chrome reads its own accent, the document keeps the CV's own: the
+     interface may re-theme with the system, the paper never does. */
+  --ui-accent: var(--accent);
+  --on-accent: #ffffff;
+  --hover-line: #b9b9c0;
+  --subtle: #fafafa;
+  --info: #5b7ba8;
+  --on-ink: #ffffff;
+}
+
+/* The same rules, for a system that is telling the tool it runs dark: only the
+   palette moves, not a rule. The paper of .cv stays white on purpose — the
+   preview is a page someone will one day print, and its accent, the one the
+   reader picked, keeps its meaning against the ink it will be seen with. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --ink: #e9e9ec;
+    --dim: #c8c8ce;
+    --faint: #9a9aa3;
+    --line: #3a3a44;
+    --bg: #191816;
+    --panel: #232220;
+    --ui-accent: #9db8e8;
+    --on-accent: #0d1b33;
+    --error: #f0938b;
+    --warn: #e5b83e;
+    --ok: #74c795;
+    --hover-line: #55555f;
+    --subtle: #262521;
+    --info: #8db3e6;
+    --on-ink: #17181b;
+  }
 }
 
 * { box-sizing: border-box; }
@@ -34,6 +66,17 @@ html, body {
   background: var(--bg);
   color: var(--ink);
   font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+
+/* Modern, warm, quiet: surfaces answer a hover, a press, a focus in the same
+   small change of colour — never a shift of layout. The focus ring is the
+   accent itself, at half strength, on every control the keyboard reaches. */
+button, select, input, textarea, summary, .card, .ia-card, .cv-style, .entry {
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+}
+button:focus-visible, a:focus-visible, summary:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--ui-accent) 55%, transparent);
+  outline-offset: 1px;
 }
 
 .sr-only {
@@ -93,7 +136,7 @@ button, select, input[type="text"] {
   cursor: pointer;
 }
 
-button:hover, select:hover { border-color: #b9b9c0; }
+button:hover, select:hover { border-color: var(--hover-line); }
 button:active { transform: translateY(1px); }
 
 button.danger:hover { border-color: var(--error); color: var(--error); }
@@ -161,7 +204,7 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 
 .viewtab.is-active {
   color: var(--ink);
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ui-accent);
   font-weight: 600;
 }
 
@@ -224,7 +267,7 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 
 .sectiontab.is-active {
   color: var(--ink);
-  border-bottom-color: var(--accent);
+  border-bottom-color: var(--ui-accent);
   font-weight: 600;
 }
 
@@ -240,7 +283,7 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   color: var(--faint);
 }
 
-.sectiontab.is-active .tabcount { background: var(--accent); color: #fff; }
+.sectiontab.is-active .tabcount { background: var(--ui-accent); color: var(--on-accent); }
 
 .sectiontabs-panel { display: none; }
 .sectiontabs-panel.is-active { display: block; }
@@ -290,7 +333,7 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   font-weight: 600;
   font-size: 14px;
   border-bottom: 1px solid var(--line);
-  background: #fafafa;
+  background: var(--subtle);
 }
 
 .card > header .count {
@@ -310,13 +353,13 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   border: 1px solid var(--line);
   border-radius: var(--radius);
   margin-bottom: 10px;
-  background: #fcfcfc;
+  background: var(--subtle);
 }
 
 .entry > header {
   padding: 7px 10px;
   font-size: 13px;
-  background: #f4f4f6;
+  background: var(--subtle);
   border-bottom: 1px solid var(--line);
   display: flex;
   align-items: center;
@@ -343,14 +386,14 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   padding: 6px 8px;
   border: 1px solid var(--line);
   border-radius: 4px;
-  background: #fff;
+  background: var(--panel);
   color: inherit;
 }
 .field textarea { resize: vertical; min-height: 62px; }
 .field input:focus, .field textarea:focus {
-  outline: 2px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  outline: 2px solid color-mix(in srgb, var(--ui-accent) 45%, transparent);
   outline-offset: -1px;
-  border-color: var(--accent);
+  border-color: var(--ui-accent);
 }
 .field input.mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 
@@ -403,7 +446,7 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   color: var(--faint);
   white-space: nowrap;
 }
-.tab.is-active { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+.tab.is-active { color: var(--ink); border-bottom-color: var(--ui-accent); font-weight: 600; }
 
 .tabpanel { display: none; overflow: auto; padding: 14px; }
 .tabpanel.is-active { display: block; }
@@ -413,7 +456,7 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   gap: 8px;
   padding: 10px 12px;
   border-top: 1px solid var(--line);
-  background: #fafafa;
+  background: var(--subtle);
   flex-wrap: wrap;
 }
 .downloads button { flex: 1 1 140px; font-size: 13px; }
@@ -428,6 +471,9 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
   .list-row button { min-width: 44px; }
   .tab { padding: 13px 14px; }
   .sessions button { min-width: 44px; }
+  /* The provider toggle is one tap target like the buttons: the whole summary
+     opens the card, so it owes a finger the same height. */
+  .ia-provider > summary { min-height: 44px; align-items: center; }
 }
 
 /* ---- the document preview ----
@@ -523,17 +569,76 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 #ia-note { margin-top: 10px; max-width: 62ch; }
 #ia-out { margin-top: 12px; }
 
+/* The streamed answer is written through the renderer in analysis.js, not
+   dumped raw: the rubrics of a review become headings, the numbered rubrics
+   a list, the bold what the reader must keep, the technos it quotes inline
+   code. The renderer builds every node with createElement and textContent —
+   nothing the model writes is ever markup — so these rules style structure
+   it alone can have made. overflow-wrap inherits the whole way down: a
+   technos or a URL the model quotes must break mid-word rather than push a
+   320px screen sideways. */
+#ia-out.ia-md { color: inherit; overflow-wrap: anywhere; }
+#ia-out.ia-md h3,
+#ia-out.ia-md h4 {
+  margin: 12px 0 4px;
+  font-size: 1em;
+  font-weight: 700;
+  color: var(--ui-accent);
+}
+#ia-out.ia-md > :first-child { margin-top: 0; }
+#ia-out.ia-md p { margin: 5px 0; }
+#ia-out.ia-md ul, #ia-out.ia-md ol { margin: 4px 0; padding-left: 1.5em; }
+#ia-out.ia-md li { margin: 3px 0; }
+#ia-out.ia-md li::marker { color: var(--ui-accent); }
+#ia-out.ia-md code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.9em;
+  background: var(--bg);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+/* The document style card: the look the reader owns, beside the form fields it
+   shapes. Four pairs — accent, typeface, body size, date format — one row each
+   on a phone, two pairs per row when the screen affords it. */
+.cv-style {
+  margin-top: 16px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--panel);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.cv-style-title { margin: 0; font-size: 1em; font-weight: 700; color: var(--ui-accent); }
+.cv-style-grid {
+  display: grid;
+  gap: 6px 14px;
+  grid-template-columns: minmax(0, auto) minmax(0, 1fr);
+  align-items: center;
+}
+.cv-style-grid label { color: var(--dim); }
+#cv-style-accent { padding: 2px; width: 3.5rem; height: 2.2rem; }
+#cv-style-size { max-width: 7rem; }
+@media (min-width: 480px) {
+  .cv-style-grid { grid-template-columns: max-content 1fr max-content 1fr; }
+}
+#cv-style-reset { align-self: flex-start; }
+.cv-style-hint { margin: 0; }
+
 /* The primary action is the accent itself; the rewrites keep the outline so
    the row reads in order of weight, not of invention. Both stay ordinary
    buttons: same size, same touch target, same focus ring as every other. */
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #fff;
+  background: var(--ui-accent);
+  border-color: var(--ui-accent);
+  color: var(--on-accent);
   font-weight: 600;
 }
 button.primary:hover { filter: brightness(1.08); }
-button.secondary { border-color: var(--accent); color: var(--accent); }
+button.secondary { border-color: var(--ui-accent); color: var(--ui-accent); }
 button.secondary:hover { background: var(--bg); }
 
 /* A card groups one optional setup the reader makes to the analysis: the
@@ -550,12 +655,13 @@ button.secondary:hover { background: var(--bg); }
   flex-direction: column;
   gap: 8px;
 }
-.ia-card-title { font-weight: 700; color: var(--accent); }
+.ia-card-title { font-weight: 700; color: var(--ui-accent); }
 
 /* The offer: the URL input wide, the retire action living in the header row
    so an unwanted offer is dismissed where it is announced, not in a second
-   corner of the panel. */
-.ia-offer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+   corner of the panel. The wrap is for narrow screens, where the title and
+   the button no longer share a row. */
+.ia-offer-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .ia-offer-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 #ia-url { flex: 1 1 16rem; min-width: 0; }
 #ia-offer { margin: 0; }
@@ -597,7 +703,7 @@ button.secondary:hover { background: var(--bg); }
   width: 13px;
   height: 13px;
   border: 2px solid var(--line);
-  border-top-color: var(--accent);
+  border-top-color: var(--ui-accent);
   border-radius: 50%;
   animation: ia-spin 0.8s linear infinite;
 }
@@ -610,7 +716,7 @@ button.secondary:hover { background: var(--bg); }
    to re-implement. */
 .ia-progress { display: flex; align-items: center; gap: 10px; margin-top: 10px; }
 .ia-progress[hidden] { display: none; }
-.ia-progress progress { flex: 1 1 auto; min-width: 0; height: 8px; accent-color: var(--accent); }
+.ia-progress progress { flex: 1 1 auto; min-width: 0; height: 8px; accent-color: var(--ui-accent); }
 .ia-pct { font-variant-numeric: tabular-nums; min-width: 4ch; text-align: right; }
 
 /* While the first token is on its way the status breathes; once the answer
@@ -625,7 +731,7 @@ button.secondary:hover { background: var(--bg); }
   height: 1em;
   margin-left: 2px;
   vertical-align: -2px;
-  background: var(--accent);
+  background: var(--ui-accent);
   animation: ia-blink 1s steps(1) infinite;
 }
 @keyframes ia-blink { 50% { opacity: 0; } }
@@ -636,7 +742,7 @@ button.secondary:hover { background: var(--bg); }
 
 .score { display: flex; align-items: center; gap: 18px; margin-bottom: 14px; }
 .score-value { display: flex; align-items: baseline; }
-.score-num { font-size: 40px; font-weight: 700; line-height: 1; color: var(--accent); }
+.score-num { font-size: 40px; font-weight: 700; line-height: 1; color: var(--ui-accent); }
 .score-den { font-size: 15px; color: var(--faint); }
 .score[data-score^="0"] .score-num,
 .score[data-score^="1"] .score-num { color: var(--error); }
@@ -651,7 +757,7 @@ button.secondary:hover { background: var(--bg); }
 .finding {
   border-left: 3px solid var(--line);
   padding: 7px 10px;
-  background: #fafafa;
+  background: var(--subtle);
   border-radius: 0 4px 4px 0;
 }
 .finding-head { display: flex; gap: 8px; align-items: baseline; margin: 0 0 3px; font-size: 12px; }
@@ -665,8 +771,8 @@ button.secondary:hover { background: var(--bg); }
 .finding-error .sev { color: var(--error); }
 .finding-warn { border-left-color: var(--warn); }
 .finding-warn .sev { color: var(--warn); }
-.finding-info { border-left-color: #5b7ba8; }
-.finding-info .sev { color: #5b7ba8; }
+.finding-info { border-left-color: var(--info); }
+.finding-info .sev { color: var(--info); }
 .finding-ok { border-left-color: var(--ok); color: var(--ok); }
 
 /* ---- toast ---- */
@@ -680,7 +786,7 @@ button.secondary:hover { background: var(--bg); }
      element is sized by its content and ignores the padding of the page. */
   max-width: calc(100vw - 24px);
   background: var(--ink);
-  color: #fff;
+  color: var(--on-ink);
   padding: 9px 16px;
   border-radius: var(--radius);
   font-size: 14px;

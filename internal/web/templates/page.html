@@ -56,6 +56,41 @@
     <input type="hidden" name="name" id="name-field">
     <input type="hidden" name="ascii" id="ascii-field">
     <div id="schema-target"></div>
+    <!--
+      The document style the reader owns: an accent, a typeface, a body size
+      and a date format, sent beside the data on every request — the very
+      fields the command line takes as flags. An empty field is the server's
+      own, so the look is owned only where somebody typed one. The choices are
+      kept in this browser, beside the drafts, and the preview recolours the
+      moment the accent moves: /api/style.css already carries them as custom
+      properties, and the .cv markup reads those, not a style attribute the
+      CSP would have to allow.
+    -->
+    <section class="cv-style" aria-labelledby="cv-style-title">
+      <h2 class="cv-style-title" id="cv-style-title">Style du CV</h2>
+      <div class="cv-style-grid">
+        <label for="cv-style-accent">Couleur d’accent</label>
+        <input type="color" id="cv-style-accent" name="accent" value="#{{.Accent}}">
+        <label for="cv-style-font">Police</label>
+        <select id="cv-style-font" name="font">
+          <option value="" selected>Par défaut</option>
+          <option value="calibri">Calibri</option>
+          <option value="arial">Arial</option>
+          <option value="times">Times</option>
+        </select>
+        <label for="cv-style-size">Corps (pt)</label>
+        <input type="number" id="cv-style-size" name="size" min="6" max="24" step="0.5" inputmode="decimal" value="{{.FontSize}}">
+        <label for="cv-style-dates">Format des dates</label>
+        <select id="cv-style-dates" name="dates">
+          <option value="" selected>Par défaut</option>
+          <option value="numeric">03/2022 – 08/2022</option>
+          <option value="month">mars 2022 – août 2022</option>
+          <option value="year">2022 – 2022</option>
+        </select>
+      </div>
+      <p class="muted cv-style-hint">Appliqué à l’aperçu et aux téléchargements, gardé dans ce navigateur. Un champ vide reprend le réglage du serveur.</p>
+      <button type="button" id="cv-style-reset">Réinitialiser</button>
+    </section>
   </form>
 
   <aside class="output" data-view-panel="output">

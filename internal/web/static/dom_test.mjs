@@ -35,8 +35,11 @@ class Node {
   }
   getAttribute(k) { return this.attributes[k] ?? null; }
   appendChild(child) { this.children.push(child); child.parentNode = this; return child; }
+  get firstChild() { return this.children[0] || null; }
   replaceChildren(...nodes) { this.children = []; for (const n of nodes) this.appendChild(n); }
   remove() { const p = this.parentNode; if (p) p.children = p.children.filter((c) => c !== this); }
+  get name() { return this.attributes.name || ''; }
+  set name(v) { this.attributes.name = v; }
   set textContent(v) { this._text = v; this.children = []; }
   get textContent() {
     return this._text || this.children.map((c) => c.textContent).join('');
@@ -107,13 +110,40 @@ document.documentElement.appendChild(document.body);
 // The skeleton page.html declares, rebuilt here from the ids Go extracted.
 // Every id the raw HTML carries is on the real page now: the two rewrite
 // buttons ship for real, so the harness gives them to the scripts the same
-// way the browser does.
+// way the browser does. The form is built as the form the page declares: the
+// hidden fields and the style card live inside it, with the names the server
+// reads — the panels include the form, and a field outside it would never
+// reach the server while the checks would say anything they wanted.
+const form = new Node('form');
+form.id = 'cv';
+const formIds = new Set(['data', 'name-field', 'ascii-field', 'schema-target',
+  'cv-style-accent', 'cv-style-font', 'cv-style-size', 'cv-style-dates']);
+const styleTags = { 'cv-style-accent': 'input', 'cv-style-font': 'select',
+  'cv-style-size': 'input', 'cv-style-dates': 'select' };
+document.body.appendChild(form);
 for (const id of ids) {
-  const node = new Node(id === 'schema-target' || id === 'data' ? 'div' : id === 'import-file' ? 'input' : 'div');
-  node.id = id;
-  if (id === 'data' || id === 'name-field' || id === 'ascii-field') node.value = '';
-  document.body.appendChild(node);
+  const tag = id === 'import-file' ? 'input' : styleTags[id] || 'div';
+  let node = form;
+  if (!formIds.has(id)) {
+    node = document.body;
+  }
+  const elNode = new Node(tag);
+  elNode.id = id;
+  if (tag === 'input' || tag === 'select') {
+    const name = { 'data': 'data', 'name-field': 'name', 'ascii-field': 'ascii',
+      'cv-style-accent': 'accent', 'cv-style-font': 'font',
+      'cv-style-size': 'size', 'cv-style-dates': 'dates' }[id];
+    if (name) elNode.name = name;
+    if (id === 'data' || id === 'name-field' || id === 'ascii-field') elNode.value = '';
+  }
+  if (id === 'cv-style-accent') elNode.value = '#1F3864';
+  if (id === 'cv-style-size') elNode.value = '10.5';
+  node.appendChild(elNode);
 }
+const accentLink = new Node('link');
+accentLink.id = 'accent';
+accentLink.setAttribute('href', '/api/style.css?accent=1F3864&size=10.5');
+document.body.appendChild(accentLink);
 for (const tab of ['preview', 'report', 'text', 'tex', 'ia']) {
   const t = new Node('button'); t.className = 'tab'; t.setAttribute('data-tab', tab);
   const p = new Node('div'); p.id = 'panel-' + tab; p.className = 'tabpanel';
@@ -438,6 +468,51 @@ await new Promise((r) => setTimeout(r, 600));
 const store4 = JSON.parse(localStorage.getItem('atscv.sessions.v1'));
 check(store4.sessions.length === 1 && store4.current === firstId, 'the session was not deleted: ' + JSON.stringify(store4.sessions.map((s) => s.id)));
 
+/* 6'. The style card: four fields riding every request beside the data, kept
+      in this browser, recolouring the preview through /api/style.css the
+      moment the accent moves — no re-render needed — and a reset that answers
+      to the server, not to the last saved choices. */
+const styleIds = ['cv-style-accent', 'cv-style-font', 'cv-style-size', 'cv-style-dates'];
+const styleNodes = styleIds.map((id) => document.getElementById(id));
+check(styleNodes.every((n) => !!n), 'the style card is missing a field: ' +
+  JSON.stringify(styleIds));
+check(styleNodes.map((n) => n.name).join(',') === 'accent,font,size,dates',
+  'the style fields do not travel by the names the server reads: ' +
+    JSON.stringify(styleNodes.map((n) => n.name)));
+const cvForm = document.getElementById('cv');
+check(!!cvForm.querySelector('[name="accent"]') && !!cvForm.querySelector('[name="font"]') &&
+    !!cvForm.querySelector('[name="size"]') && !!cvForm.querySelector('[name="dates"]'),
+  'a style field does not live in the form the panels include: it would never reach the server');
+const styleRefreshes = [];
+document.body.addEventListener('cv:preview', () => styleRefreshes.push(1));
+document.getElementById('cv-style-accent').value = '#ff8800';
+document.getElementById('cv-style-accent').dispatchEvent({ type: 'change' });
+await new Promise((r) => setTimeout(r, 50));
+const styleSaved = JSON.parse(localStorage.getItem('atscv.style.v1') || 'null');
+check(!!styleSaved && styleSaved.accent === '#ff8800',
+  'the chosen accent was not kept in this browser: ' + JSON.stringify(styleSaved));
+check((document.getElementById('accent').getAttribute('href') || '').indexOf('accent=%23ff8800') >= 0,
+  'the preview stylesheet was not recoloured: ' +
+    JSON.stringify(document.getElementById('accent').getAttribute('href')));
+check(styleRefreshes.length >= 1, 'a style change asked for no preview refresh');
+// The reset answers to the server: the selects spell default, the color and
+// the size come back to what the template burned in.
+document.getElementById('cv-style-reset').click();
+await new Promise((r) => setTimeout(r, 50));
+check(document.getElementById('cv-style-font').value === '' &&
+    document.getElementById('cv-style-dates').value === '',
+  'the reset did not hand the selects back to the server default');
+check((document.getElementById('accent').getAttribute('href') || '').indexOf('accent=') >= 0,
+  'the reset left the preview stylesheet behind');
+check(!!JSON.parse(localStorage.getItem('atscv.style.v1') || '{}'),
+  'the record after the reset is not readable');
+const beforeStyleRuns = { get: () => localStorage.getItem('atscv.style.v1') };
+document.getElementById('cv-style-font').value = 'arial';
+document.getElementById('cv-style-font').dispatchEvent({ type: 'change' });
+await new Promise((r) => setTimeout(r, 150));
+check(beforeStyleRuns.get() && JSON.parse(beforeStyleRuns.get()).font === 'arial',
+  'a saved font did not survive its own save: ' + beforeStyleRuns.get());
+
 /* 7. an edit is drawn while it is written: a keystroke asks at once, a burst
       asks once for the window, and the last keystroke is never dropped */
 const refreshes = [];
@@ -600,6 +675,36 @@ check((document.getElementById('ia-status').textContent || '').indexOf('Réponse
   'the answer never finished: ' + JSON.stringify(document.getElementById('ia-status').textContent));
 check(document.getElementById('ia-run').disabled === false,
   'the analysis button stayed disabled after a provider run');
+// 7f'. The answer is markdown, and the panel renders it prettily — heading,
+//      list, bold — through the safe renderer: no raw « ## » nor « ** » left
+//      on screen, and no markup the model wrote ever became markup.
+// The review text stays « Analyse du CV » so « Appliquer les améliorations »
+// (checked below) still rides this run's suggestions.
+providerReplies.push(
+  'data: {"choices":[{"delta":{"content":"## Analyse du CV\\ngrands points :\\n"}}]}\n\n' +
+  'data: {"choices":[{"delta":{"content":"1. **Go** asynchrone\\n"}}]}\n\n' +
+  'data: [DONE]\n\n'
+);
+document.getElementById('ia-run').click();
+await new Promise((r) => setTimeout(r, 100));
+const prettyOut = document.getElementById('ia-out');
+const prettyHTML = prettyOut.outerHTML || '';
+check(!!prettyOut.querySelector('h3'),
+  'the answer’s rubric heading is not a heading: ' + JSON.stringify(prettyHTML.slice(0, 200)));
+check(!!prettyOut.querySelector('ol') && !!prettyOut.querySelector('li'),
+  'the numbered rubric did not become a list: ' + JSON.stringify(prettyHTML.slice(0, 200)));
+check((prettyOut.querySelector('li') || { textContent: '' }).textContent === 'Go asynchrone',
+  'the rubric item lost its words: ' +
+    JSON.stringify(prettyOut.querySelector('li') && prettyOut.querySelector('li').textContent));
+check(!!prettyOut.querySelector('strong'),
+  'the emphased word lost its bold: ' + JSON.stringify(prettyHTML.slice(0, 200)));
+check(prettyOut.classList.contains('ia-md') && !prettyOut.classList.contains('plaintext'),
+  'the pretty answer is not marked as one: ' + JSON.stringify(prettyOut.className));
+const prettyText = prettyOut.textContent || '';
+check(prettyText.indexOf('##') < 0 && prettyText.indexOf('**') < 0,
+  'markdown symbols stayed visible: ' + JSON.stringify(prettyText));
+check(document.getElementById('ia-run').disabled === false,
+  'the analysis button stayed disabled after the pretty answer');
 // Un serveur qui refuse l'appel navigateur (CORS) : le fetch jette, et le
 // message nomme la pré-demande OPTIONS et l'URL exacte, pas un vide.
 providerReplies.push('throw');

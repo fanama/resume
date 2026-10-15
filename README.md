@@ -158,10 +158,29 @@ fait l'outil, ses trois étapes, le linter, la pagination — et
 feuille de style, donc la vitrine et l'outil ne peuvent pas diverger. La page
 d'accueil ne lit aucun CV et n'appelle aucun renderer.
 
+La vitrine porte la preuve, pas seulement la promesse : le hero montre un CV
+rendu et son diagnostic ATS, dessinés en CSS pur (aucun asset, aucune requête
+de plus), les sections s'affichent en fondu au scroll via un petit `home.js`
+maison qui respecte `prefers-reduced-motion` et ne cache rien si le script ne
+tourne pas, et le fond long se lit sous des plis `<details>` natifs.
+
 `/editor` est un formulaire complet
 construit à partir du schéma publié par le serveur, un aperçu qui se met à jour
 à la frappe, le rapport ATS, le texte brut que l'ATS extrait, la source LaTeX,
 une analyse de contenu relue par un modèle local, et cinq téléchargements.
+
+**Le style du CV se règle dans l'éditeur.** Une carte à la fin du formulaire
+propose une couleur d'accent, une police (Calibri, Arial ou Times), le corps en
+points et le format des dates — les mêmes réglages que `-accent`, `-font`,
+`-size` et `-dates` prennent en ligne de commande. Ils partent avec chaque
+requête, l'aperçu se recolore à la volée via `style.css` (l'accent et la
+taille sont des custom properties, pas un style inline la CSP refuse), et les
+choix sont gardés dans ce navigateur (`atscv.style.v1`, à côté des brouillons).
+Un champ laissé vide reprend le réglage du serveur.
+
+**L'interface suit le thème du système.** L'aperçu du CV, lui, reste une page
+papier — blanc avec l'accent que vous avez choisi — parce que c'est un document
+que quelqu'un imprimera peut-être un jour.
 
 L'aperçu est redessiné **pendant** la frappe, pas à l'arrêt : la première
 modification d'une rafale part immédiatement, les suivantes attendent une fenêtre
@@ -574,9 +593,13 @@ Trois faits à connaître :
 Le modèle (`vs4vijay/MiniCPM5-2B-MLC`, quantification q4f16_1) et le prompt
 sont déclarés dans `internal/web/static/analysis.js`. Le panneau envoie au
 modèle exactement ce que la vue « Texte brut » montre — l'ordre de lecture
-qu'un parseur extrait — et la réponse est rendue en `textContent`, jamais en
-HTML. Sans WebGPU, avec un CV invalide ou hors ligne, le bouton explique
-l'échec au lieu de faire semblant.
+qu'un parseur extrait — et la réponse est rendue de manière lisible : un
+petit analyseur markdown maison transforme ses rubriques en titres et listes,
+son gras et son code en éléments véritables, sans dichée de symboles « ## »
+ou « ** ». La sûreté tient dans la construction : chaque nœud naît vide via
+`createElement` et ne reçoit que du `textContent` — rien de ce que le modèle
+écrit n'est jamais interprété comme HTML. Sans WebGPU, avec un CV invalide ou
+hors ligne, le bouton explique l'échec au lieu de faire semblant.
 
 Chaque phase d'attente a son signe : un spinner pendant la lecture du CV, le
 chargement du moteur et la génération ; une barre de progression en pourcentage

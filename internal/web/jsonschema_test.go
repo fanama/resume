@@ -455,3 +455,34 @@ func TestTheRewriteGetsOneSecondChance(t *testing.T) {
 		t.Error("the token limit is not recognised as the cause of a cut answer")
 	}
 }
+
+// TestTheAnswerIsRenderedByASafeParser guards how an answer is shown. The
+// model writes markdown, and showing it raw — « ## Points forts », « **Go ** »
+// — makes the panel harder to read; stripping those marks means rendering,
+// and rendering is exactly where untrusted text becomes dangerous. So the
+// renderer must be present and must be the safe kind: every node it builds
+// starts empty, from createElement, and its text travels by textContent —
+// innerHTML, the parsers, the markup setters are nowhere in the file.
+func TestTheAnswerIsRenderedByASafeParser(t *testing.T) {
+	rec := get(t, testServer(t), "/static/analysis.js")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /static/analysis.js = %d", rec.Code)
+	}
+	script := rec.Body.String()
+
+	for _, want := range []struct{ needle, why string }{
+		{"renderAnswer", "the streamed answer is shown raw, markdown symbols and all"},
+		{"createElement", "the answer's structure is built some other way"},
+		{"createTextNode", "even plain text is not handed to the DOM as text"},
+		{"ia-md", "the pretty answer ships without the class that styles it"},
+	} {
+		if !strings.Contains(script, want.needle) {
+			t.Errorf("analysis.js contains no %s: %s", want.needle, want.why)
+		}
+	}
+	for _, banned := range []string{".innerHTML", "outerHTML", "insertAdjacentHTML", "DOMParser", "document.write"} {
+		if strings.Contains(script, banned) {
+			t.Errorf("analysis.js contains %s: an answer the model wrote was never parsed as markup", banned)
+		}
+	}
+}

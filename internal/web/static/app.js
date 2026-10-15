@@ -990,6 +990,70 @@ function hideProgress() {
   if (node) node.hidden = true;
 }
 
+/* ------------------------------------------------------ document style */
+
+/* Le style du CV est la demande du lecteur : accent, police, corps et format
+   des dates, gardés dans ce navigateur à côté des brouillons, envoyés avec les
+   mêmes noms de champs que le CLI prend en options. */
+const STYLE_KEY = 'atscv.style.v1';
+
+/** The four style fields, with a name the server reads. A page that ships no
+ *  card loses nothing but the feature: the server's options are then the whole
+ *  look. */
+function styleFields() {
+  return ['accent', 'font', 'size', 'dates']
+    .map((name) => document.getElementById('cv-style-' + name))
+    .filter(Boolean);
+}
+
+/** wireStyle restores the choices this browser last made, carries every change
+ *  straight to the preview — /api/style.css answers the accent and the body
+ *  size as custom properties, which the .cv markup reads, so recoloring needs
+ *  no re-render — and leaves the values where they travel: the form carries
+ *  the fields to every panel and download by name. The server's own values are
+ *  snapshotted before the restore possibly overwrites them, so the reset
+ *  button answers to the server, not to the last saved choices. */
+function wireStyle() {
+  const fields = styleFields();
+  if (!fields.length) return;
+  const accent = document.getElementById('cv-style-accent');
+  const size = document.getElementById('cv-style-size');
+  const link = document.getElementById('accent');
+  // Snapshot first: what the template burned in is what the server runs on.
+  const serverValues = new Map(fields.map((f) => [f.name, f.value]));
+  // Then restore what this browser chose last time, if anything.
+  try {
+    const saved = JSON.parse(localStorage.getItem(STYLE_KEY) || 'null');
+    if (saved) for (const field of fields) {
+      if (typeof saved[field.name] === 'string') field.value = saved[field.name];
+    }
+  } catch (e) { /* a broken record is not a record */ }
+  const recolour = () => {
+    if (!link) return;
+    const q = [];
+    if (accent.value) q.push('accent=' + encodeURIComponent(accent.value));
+    if (size.value) q.push('size=' + encodeURIComponent(size.value));
+    if (q.length) link.setAttribute('href', '/api/style.css?' + q.join('&'));
+  };
+  const change = () => {
+    try {
+      localStorage.setItem(STYLE_KEY, JSON.stringify(Object.fromEntries(fields.map((f) => [f.name, f.value]))));
+    } catch (e) { /* storage full or blocked: the panel still follows */ }
+    recolour();
+    refreshOutput(); // the answered panels read the new dates and accent
+  };
+  for (const field of fields) field.addEventListener('change', change);
+  const reset = document.getElementById('cv-style-reset');
+  if (reset) reset.addEventListener('click', () => {
+    // The selects spell "default", the controls answer their template value.
+    for (const field of fields) {
+      field.value = field.tagName === 'SELECT' ? '' : serverValues.get(field.name);
+    }
+    change();
+  });
+  recolour();
+}
+
 /* --------------------------------------------------------------- downloads */
 
 function wireDownloads() {
@@ -1000,6 +1064,11 @@ function wireDownloads() {
       body.set('data', document.getElementById('data').value);
       body.set('name', document.getElementById('name-field').value);
       body.set('ascii', document.getElementById('ascii-field').value);
+      for (const field of styleFields()) {
+        // Empty answers the server's own; a named value goes exactly like the
+        // flags a command line call would take: accent, font, size, dates.
+        body.set(field.name, field.value);
+      }
       button.disabled = true;
       try {
         const res = await fetch('/api/render/' + format, {
@@ -1113,6 +1182,7 @@ async function boot() {
   wireViewTabs();
   wireSessions();
   wireFiles();
+  wireStyle();
   wireDownloads();
 
   document.getElementById('ascii').addEventListener('change', () => {
