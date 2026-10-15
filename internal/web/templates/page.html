@@ -137,11 +137,19 @@
     -->
     <div class="tabpanel" id="panel-ia" role="tabpanel">
       <div class="ia-controls">
+        <!--
+          The three actions of the panel. « Analyser » reads the CV and writes
+          advice below it; « Appliquer » opens a new version (a new session)
+          with the improvements applied — guided by the last analysis when one
+          ran; « Traduire » opens a new version in the other language. Neither
+          rewrite touches the session under the editor: the original stays.
+        -->
         <button type="button" id="ia-run">Analyser le CV</button>
-        <!-- <button type="button" id="ia-optimize">Optimiser le contenu</button> -->
-        <!-- <button type="button" id="ia-translate">Traduire le CV</button> -->
+        <button type="button" id="ia-optimize" title="Ouvre une nouvelle version du CV avec les améliorations appliquées">Appliquer les améliorations IA</button>
+        <button type="button" id="ia-translate" title="Ouvre une nouvelle version du CV traduite">Traduire le CV</button>
         <span class="ia-spinner" id="ia-spinner" hidden aria-hidden="true"></span>
         <span id="ia-status" class="muted" role="status" aria-live="polite"></span>
+        <p class="muted ia-controls-hint">« Analyser » écrit des conseils dans le panneau ; « Appliquer » et « Traduire » ouvrent une nouvelle version (session) du CV — la version d'origine reste intacte.</p>
       </div>
       <!--
         The offer block: a URL pasted here is fetched by the server, because a

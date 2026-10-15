@@ -105,14 +105,10 @@ document.body = new Node('body');
 document.documentElement.appendChild(document.body);
 
 // The skeleton page.html declares, rebuilt here from the ids Go extracted.
-// The extraction reads the raw HTML, but a renderer strips its comments — so
-// an id that lives only inside one (as the rewrite buttons do here) is not on
-// the real page, and the harness must not hand it to the scripts either.
-const commentOnly = new Set(['ia-optimize', 'ia-translate']);
+// Every id the raw HTML carries is on the real page now: the two rewrite
+// buttons ship for real, so the harness gives them to the scripts the same
+// way the browser does.
 for (const id of ids) {
-  if (commentOnly.has(id)) {
-    continue;
-  }
   const node = new Node(id === 'schema-target' || id === 'data' ? 'div' : id === 'import-file' ? 'input' : 'div');
   node.id = id;
   if (id === 'data' || id === 'name-field' || id === 'ascii-field') node.value = '';
@@ -137,6 +133,7 @@ const localStorage = {
   removeItem: (k) => storage.delete(k),
 };
 let stored = null;      // what the last API call received
+let lastChat = null;    // what the last /chat/completions received, said apart from validate
 // The replies the provider endpoint gives when the test asks it for one:
 // the harness answers what the tests push, like a real OpenAI server reads
 // its own configuration.
@@ -168,6 +165,7 @@ globalThis.fetch = async (url, init) => {
   }
   if (String(url).indexOf('/chat/completions') >= 0) {
     stored = { url: String(url), body: init && init.body };
+    lastChat = { url: String(url), body: init && init.body };
     const reply = providerReplies.shift();
     if (reply === undefined) return { ok: false, status: 500, json: async () => ({}), text: async () => '' };
     // Un appel que le navigateur refuse (CORS) ne donne jamais de réponse :
@@ -237,10 +235,12 @@ storage.set('atscv.sessions.v1', JSON.stringify({
 }));
 
 const src = readFileSync(new URL('./app.js', import.meta.url), 'utf8');
-new Function(src)();
-// analysis.js is a deferred script on the real page; here it runs as soon as
-// the skeleton above, which is all its wiring asks for.
-new Function(readFileSync(new URL('./analysis.js', import.meta.url), 'utf8'))();
+const analysisSrc = readFileSync(new URL('./analysis.js', import.meta.url), 'utf8');
+// Both scripts are deferred classics on the real page: they share the global
+// scope, so app.js's statements are reachable from analysis.js. Two separate
+// Function scopes would hide them one from the other — one Function holding
+// the two sources is what the browser hands the page.
+new Function(src + '\n;\n' + analysisSrc)();
 for (const fn of documentListeners.DOMContentLoaded || []) await fn();
 runFrames();
 
@@ -528,10 +528,8 @@ if (translateBtn) {
     'the translate button does not name its target: ' +
       JSON.stringify(translateBtn.textContent));
 }
-// These ids come from the raw HTML only: if the fixture hands them back as
-// real nodes, the harness lies about the page it serves.
-check(!optimizeBtn && !translateBtn,
-  'the rewrite buttons are shipped today; the harness no longer matches the page');
+check(!!optimizeBtn && !!translateBtn,
+  'the rewrite buttons are missing from the served page');
 
 /* 7e. the offer of a job is fetched once, kept in this browser, and named for
       as long as it stays: the URL goes out, the text comes back and is stored,
@@ -636,6 +634,88 @@ provSaveNode.click();
 provClearNode.click();
 check(localStorage.getItem('atscv.llm.v1') === null, 'the retired provider is still active');
 check(provClearNode.hidden === true, 'the clear button stayed visible with nothing to retire');
+
+/* 7g. « Traduire » — the provider answers the whole translated document and
+      the read-back verdict checks every pinned field; the new version (a new
+      session) opens beside the original, never over it. */
+const sessionsOf = () => JSON.parse(localStorage.getItem('atscv.sessions.v1') || '{}');
+const beforeTranslate = sessionsOf();
+const sourceData = beforeTranslate.sessions.find((s) => s.id === beforeTranslate.current).data;
+const translated = JSON.parse(JSON.stringify(sourceData));
+translated.lang = 'en';
+translated.headline = 'Distributed Go engineer';
+// The content of a delta is the TEXT of the document, which is itself a JSON
+// string inside the payload — hence the second stringify.
+providerReplies.push(
+  'data: {"choices":[{"delta":{"content":' + JSON.stringify(JSON.stringify(translated)) + '},"finish_reason":"stop"}]}\n\n' +
+  'data: [DONE]\n\n'
+);
+// Re-activating the provider: the retirement check above cleared it.
+provUrlNode.value = 'https://api.exemple.fr/v1';
+provModelNode.value = 'gpt-mini';
+provKeyNode.value = 'sk-test';
+provSaveNode.click();
+translateBtn.click();
+await new Promise((r) => setTimeout(r, 150));
+const translateCall = lastChat && lastChat.body ? JSON.parse(lastChat.body) : null;
+check(!!translateCall && translateCall.response_format &&
+    translateCall.response_format.type === 'json_schema' &&
+    translateCall.response_format.json_schema.name === 'resume',
+  'the translation did not constrain the model with the published grammar: ' +
+    JSON.stringify(translateCall && translateCall.response_format));
+const afterTranslate = sessionsOf();
+check(afterTranslate.sessions.length === beforeTranslate.sessions.length + 1,
+  'the translation did not open a new version (a new session): ' + afterTranslate.sessions.length);
+const applied = afterTranslate.sessions.find((s) => s.id === afterTranslate.current);
+check(!!applied && applied.data && applied.data.lang === 'en',
+  'the translated version did not become the current session: ' +
+    JSON.stringify(applied && applied.data && applied.data.lang));
+check(!!applied && (applied.name || '').indexOf('EN') >= 0,
+  'the new version is not named after the translation: ' +
+    JSON.stringify(applied && applied.name));
+const kept = afterTranslate.sessions.find((s) => s.id === beforeTranslate.current);
+check(!!kept && kept.data && kept.data.lang === 'fr',
+  'the original version did not survive its own rewrite: ' +
+    JSON.stringify(kept && kept.data && kept.data.lang));
+check(translateBtn.disabled === false,
+  'the translate button stayed disabled after the success');
+check((document.getElementById('ia-status').textContent || '').indexOf('Nouvelle session') >= 0 ||
+    (document.getElementById('ia-status').textContent || '').indexOf('New session') >= 0,
+  'the new version was not announced: ' +
+    JSON.stringify(document.getElementById('ia-status').textContent));
+
+/* 7h. « Appliquer » — the last analysis' suggestions ride along in the
+      prompt, and a cut answer (finish_reason length) is told back once, not
+      a dead end twice. */
+const optimized = JSON.parse(JSON.stringify(translated));
+optimized.headline = 'Ingénieure distribuée en Go';
+providerReplies.push(
+  'data: {"choices":[{"delta":{"content":"{\\"lang\\":\\"fr"},"finish_reason":"length"}]}\n\n' +
+  'data: [DONE]\n\n'
+);
+providerReplies.push(
+  'data: {"choices":[{"delta":{"content":' + JSON.stringify(JSON.stringify(optimized)) + '},"finish_reason":"stop"}]}\n\n' +
+  'data: [DONE]\n\n'
+);
+optimizeBtn.click();
+await new Promise((r) => setTimeout(r, 150));
+const optimizeCall = lastChat && lastChat.body ? JSON.parse(lastChat.body) : null;
+check(!!optimizeCall && Array.isArray(optimizeCall.messages) && optimizeCall.messages.length === 3,
+  'the second attempt was not told what went wrong: messages.length = ' +
+    JSON.stringify(optimizeCall && optimizeCall.messages && optimizeCall.messages.length));
+check(!!optimizeCall && (optimizeCall.messages[1].content || '').indexOf('Analyse du CV') >= 0,
+  'the applied rewrite did not ride the last analysis suggestions: ' +
+    JSON.stringify(optimizeCall && optimizeCall.messages &&
+      optimizeCall.messages.map((m) => String(m.content || '').slice(0, 80))));
+const afterOptimize = sessionsOf();
+check(afterOptimize.sessions.length === afterTranslate.sessions.length + 1,
+  'the applied rewrite did not open a new version: ' + afterOptimize.sessions.length);
+const appliedOpt = afterOptimize.sessions.find((s) => s.id === afterOptimize.current);
+check(!!appliedOpt && appliedOpt.data && appliedOpt.data.lang === 'en',
+  'the applied rewrite lost the language it was asked to keep: ' +
+    JSON.stringify(appliedOpt && appliedOpt.data && appliedOpt.data.lang));
+check(!!appliedOpt && (appliedOpt.name || '').indexOf('optimisé') >= 0,
+  'the optimized version is not named as one: ' + JSON.stringify(appliedOpt && appliedOpt.name));
 
 if (reportTab) reportTab.click(); // leave the editor on a panel the rest reads
 

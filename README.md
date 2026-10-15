@@ -544,10 +544,15 @@ git les conserve, `git show HEAD:components/skills.adoc` par exemple.
 
 ## Analyse IA
 
-L'onglet « Analyse IA » de l'éditeur relit le CV et propose des améliorations —
-points forts, problèmes, réécritures prêtes à coller — avec un modèle
-**MiniCPM5-2B** qui tourne dans le navigateur lui-même, via WebLLM et WebGPU.
-Le CV ne quitte jamais la page : aucune requête ne le transporte.
+L'onglet « Analyse IA » de l'éditeur propose trois actions en un seul endroit :
+**« Analyser le CV »** relit le CV et écrit ses conseils — points forts,
+problèmes, réécritures prêtes à coller ; **« Appliquer les améliorations IA »**
+ouvre une nouvelle version du CV avec les suggestions appliquées ;
+**« Traduire le CV »** en ouvre une dans l'autre langue. Les deux reécritures
+travaillent avec le modèle **MiniCPM5-2B** qui tourne dans le navigateur
+lui-même, via WebLLM et WebGPU, ou avec le fournisseur que vous nommez
+ci-dessous. Le CV ne quitte toujours que la page : aucune requête ne le
+transporte, sauf vers le fournisseur choisi.
 
 Trois faits à connaître :
 
@@ -602,11 +607,17 @@ votre URL le porte — le contrat du panneau en tenant compte : reliez le CV à 
 fournisseur de confiance.
 
 Deux actions vont plus loin que la relecture, avec le même garde-fou que
-l'import : **« Optimiser le contenu »** réécrit l'accroche, le résumé et les
-points (verbe d'action en tête, chiffres conservés, aucun fait inventé) et
-**« Traduire »** passe le CV de `fr` à `en` ou l'inverse — nom, contact et
-dates intacts, champ `lang` basculé, les libellés suivent automatiquement. Le
-modèle doit renvoyer le JSON complet, qui repasse par `POST /api/parse` :
-sans son feu vert, rien n'est appliqué. Ce qui passe ouvre une **nouvelle
-session** — le motif de l'import PDF — donc le brouillon d'origine reste à
-côté, comparable et intact.
+l'import : **« Appliquer les améliorations IA »** réécrit le CV — d'abord en
+appliquant les suggestions de la dernière analyse lancée, quand il y en a une
+— **et « Traduire le CV »** le passe de `fr` à `en` ou l'inverse — nom, contact
+et dates intacts, champ `lang` basculé, les libellés suivant la liste de règles
+qui nomme chaque champ du document. Deux filets protègent ces réécritures :
+la grammaire que `/api/schema` publie (le même schéma JSON que le parseur)
+contraint le modèle via `response_format` quand l'endpoint l'accepte, et la
+réponse repasse de toute façon par `POST /api/parse` — sans son feu vert rien
+n'est appliqué. Une traduction est en plus relue champ par champ contre le
+document d'origine : un champ épinglé qui a bougé (nom, contact, URL, date,
+compte d'entrées) est refusé et renvoyé au modèle une fois, jamais en boucle.
+Ce qui passe ouvre une **nouvelle version — une nouvelle session**, le motif
+de l'import PDF — donc le brouillon d'origine reste à côté, comparable et
+intact.

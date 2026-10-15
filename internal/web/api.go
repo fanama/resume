@@ -153,6 +153,10 @@ func (s *Server) handleSchema(w http.ResponseWriter, r *http.Request) {
 		"identity":   IdentitySchema(),
 		"contact":    ContactSchema(),
 		"sections":   Sections(),
+		// The grammar the analysis panel constrains its rewrites with: the
+		// same resume shape the parser enforces, published as a JSON Schema,
+		// so the browser can only emit documents the server will accept.
+		"resumeSchema": ResumeJSONSchema(),
 	})
 }
 

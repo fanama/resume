@@ -215,10 +215,53 @@
     return res;
   };
 
+  /* The grammar of a resume, published by the server beside the editor
+     schema. /api/schema answers the same document shape the parser enforces,
+     as a JSON Schema — the one constraint the rewrites are given: WebLLM
+     compiles it into the decoding, an OpenAI-compatible provider receives it
+     as a json_schema response format, and a rewrite comes back a valid
+     document by construction instead of by luck. Fetched on the first
+     rewrite, not on load, for the same reason the engine is. */
+  const grammar = { schema: null, asked: false };
+
+  const loadGrammar = async () => {
+    if (grammar.asked) return grammar.schema;
+    grammar.asked = true;
+    try {
+      const res = await fetch('/api/schema');
+      if (res.ok) {
+        const published = await res.json();
+        grammar.schema = (published && published.resumeSchema) || null;
+      }
+    } catch (e) {
+      // Without the schema the rewrites stay free-text: the validation gate
+      // below is what keeps a malformed answer out of the editor.
+    }
+    return grammar.schema;
+  };
+
+  /* responseFormat shapes the constraint for the door it will cross: the
+     OpenAI spelling for a provider, the local engine's json_object for
+     WebLLM. An endpoint that refuses the format alone must not kill the
+     rewrite: the loop below drops the constraint once and asks again. */
+  const responseFormat = (schema) => {
+    if (!schema) return undefined;
+    if (llm) {
+      return { type: 'json_schema', json_schema: { name: 'resume', strict: true, schema } };
+    }
+    return { type: 'json_object', schema };
+  };
+
   /* The engine survives between two runs: reloading it would re-read the
      cached weights, and the first load is the expensive one. */
   let engine = null;
   let busy = false;
+  // The stop reason of the last stream: the only thing that tells a cut
+  // answer from a written one, whichever door the writing came through.
+  let streamStop = '';
+  // The answer of the last analysis, kept so « Appliquer les améliorations »
+  // applies what was proposed rather than rewriting the CV in the dark.
+  let lastReview = '';
 
   const setBusy = (on) => {
     busy = on;
@@ -313,23 +356,68 @@
     ];
   };
 
-  const rewriteMessages = (resume, mode, target) => {
+  /* The translation rules spell every field of the document by name, each in
+     one of three lists: what gets translated, what gets translated as a
+     proper noun in context, and what a translation leaves rigorously
+     identical — plus the one rule for the lang field, which is switched. The
+     lists and the schema the server publishes are kept in step by the tests:
+     a field added to the model and forgotten here would come back in the
+     source language — a defect only a reader of the translated CV would
+     see. */
+  const rewriteMessages = (resume, mode, target, suggestions) => {
     const json = JSON.stringify(resume);
-    const rules = mode === 'translate'
-      ? 'Traduis ce CV en ' + (target === 'en' ? 'anglais' : 'français') + '.\n' +
-        '- Traduis le contenu textuel : accroche, résumé, titres et points des entrées, ' +
-        'compétences, langues, activités, projets, certifications, libellés de liens.\n' +
-        '- Mets le champ lang à "' + target + '".\n' +
-        "- Ne traduis pas le nom de la personne, les emails, téléphones, villes et URLs, " +
-        'et garde les dates au format AAAA-MM ou AAAA.\n' +
-        '- Traduis fidèlement : n\'invente ni ne supprime aucun fait.'
-      : 'Améliore la formulation de ce CV.\n' +
+    let rules;
+    if (mode === 'translate') {
+      rules =
+        'Traduis ce CV en ' + (target === 'en' ? 'anglais' : 'français') + '.\n' +
+        '- Traduis exactement ces champs texte, et seulement eux :\n' +
+        '`headline`, `summary`, `contact.note`, `contact.links[].label`, ' +
+        '`experience[].title`, `experience[].summary`, `experience[].highlights[]`, ' +
+        '`experience[].team`, `education[].degree`, `education[].summary`, ' +
+        '`education[].coursework[]`, `certifications[].name`, `projects[].summary`, ' +
+        '`projects[].highlights[]`, `activities[].summary`, ' +
+        '`activities[].highlights[]`, `skills[].category`, `skills[].items[]`, ' +
+        '`languages[].name`, `languages[].level`.\n' +
+        '- Traduis aussi ces énoncés de noms propres, sans en retaper ' +
+        'l\'orthographe :\n' +
+        '`experience[].company`, `education[].school`, `certifications[].issuer`, ' +
+        '`projects[].name`, `activities[].organization`, `activities[].name`.\n' +
+        '- Mets `lang` à "' + target + '".\n' +
+        '- Laisse rigoureusement identiques tous les autres champs — le nom de la ' +
+        'personne, les coordonnées, les lieux, les dates, les URLs et les technos :\n' +
+        '`name`, `contact.city`, `contact.region`, `contact.country`, ' +
+        '`contact.email`, `contact.phone`, `contact.links[].url`, ' +
+        '`experience[].location`, `experience[].start`, `experience[].end`, ' +
+        '`experience[].stack[]`, `education[].location`, `education[].start`, ' +
+        '`education[].end`, `certifications[].date`, `certifications[].id`, ' +
+        '`projects[].url`, `projects[].start`, `projects[].end`, ' +
+        '`projects[].technologies[]`, `activities[].location`, ' +
+        '`activities[].start`, `activities[].end`.\n' +
+        '- Traduis fidèlement : n\'invente ni ne supprime aucun fait.';
+    } else if (suggestions) {
+      rules =
+        'Améliore la formulation de ce CV en appliquant d\'abord les ' +
+        'suggestions de l\'analyse ci-dessous, quand elles restent fidèles ' +
+        'aux faits ; ignore une suggestion qui inventerait un fait, un ' +
+        'chiffre ou une date.\n' +
+        '- Réécris accroche, résumé et points des entrées : verbe d\'action en tête de phrase, ' +
+        'phrases courtes, chiffres conservés tels quels.\n' +
+        "- N'invente aucun fait, chiffre, poste, entreprise, date ni compétence : " +
+        "c'est la formulation qui change, pas le contenu.\n" +
+        '- Ne change ni les clés, ni les dates, ni le champ lang, ni le contact, ni le nom ; ' +
+        'les champs vides restent vides ; la langue du CV est conservée.\n\n' +
+        'Suggestions de l\'analyse précédente :\n\n' +
+        String(suggestions).slice(0, 6000);
+    } else {
+      rules =
+        'Améliore la formulation de ce CV.\n' +
         '- Réécris accroche, résumé et points des entrées : verbe d\'action en tête de phrase, ' +
         'phrases courtes, chiffres conservés tels quels.\n' +
         "- N'invente aucun fait, chiffre, poste, entreprise, date ni compétence : " +
         "c'est la formulation qui change, pas le contenu.\n" +
         '- Ne change ni les clés, ni les dates, ni le champ lang, ni le contact, ni le nom ; ' +
         'les champs vides restent vides ; la langue du CV est conservée.';
+    }
     return [
       {
         role: 'system',
@@ -387,12 +475,12 @@
     return engine;
   };
 
-  /* sseDeltas reads the stream the OpenAI servers write: "data:" lines, the
-     deltas of the choices they carry, a [DONE] line at the end. Every
-     OpenAI-compatible provider has agreed on that shape, so one reader
-     covers them all — and every line the model writes here is content, in
-     the same shape the local engine reports its chunks in. */
-  const sseDeltas = async function* (res) {
+  /* sseChoices reads the stream the OpenAI servers write: "data:" lines, the
+     choices they carry, a [DONE] line at the end. Every OpenAI-compatible
+     provider has agreed on that shape, so one reader covers them all — and
+     it yields the choice itself, stop reason included, the same shape the
+     local engine reports its chunks in. */
+  const sseChoices = async function* (res) {
     const reader = res.body.getReader();
     const decoder = new TextDecoder();
     let buffer = '';
@@ -409,29 +497,57 @@
         if (payload === '[DONE]')  return;
         try {
           const json = JSON.parse(payload);
-          const delta = json && json.choices && json.choices[0] && json.choices[0].delta;
-          if (delta && delta.content) yield delta;
+          const choice = json && json.choices && json.choices[0];
+          if (choice && choice.finish_reason) streamStop = choice.finish_reason;
+          if (choice) yield choice;
         } catch (e) { /* a partial line or a provider note: content is what matters */ }
       }
     }
   };
 
-  /* startChat is the one door both actions walk through: the configured
+  /* startChat is the one door every action walks through: the configured
      provider when there is one, the local engine when there is not. It
-     answers an iterable of the same deltas either way, so the streaming
+     answers an iterable of the same choices either way, so the streaming
      below is written once. */
+  /* localChoices wraps the local engine's stream the same way sseChoices
+     wraps a provider's: chunks in, choices out, the stop reason recorded —
+     so both doors answer one shape and the loop below is written once. */
+  const localChoices = async function* (chunks) {
+    for await (const chunk of chunks) {
+      const choice = chunk && chunk.choices && chunk.choices[0];
+      if (choice) {
+        if (choice.finish_reason) streamStop = choice.finish_reason;
+        yield choice;
+      }
+    }
+  };
+
   const startChat = async (messages, params) => {
     if (llm) {
       const res = await providerChat(messages, params);
-      return sseDeltas(res);
+      return sseChoices(res);
     }
     const eng = await ensureEngine();
-    return eng.chat.completions.create({ messages, stream: true, ...params });
+    return localChoices(eng.chat.completions.create({ messages, stream: true, ...params }));
+  };
+
+  /* rewrite is both actions: the draft is validated first (the model must be
+     given a sound baseline), the model returns the whole JSON — constrained
+     by the grammar the server publishes when it can — and the result goes
+     back through validation, and through the untouched comparison for a
+     translation, before a session opens.
+
+     app.js owns all of it — this file only calls. */
+  /* showEdit presses the view tab app.js owns: after a rewrite is applied,
+     the reader goes back to the form, where the new version now lives. */
+  const showEdit = () => {
+    const tab = document.querySelector('.viewtab[data-view="edit"]');
+    if (tab) tab.click();
   };
 
   /* applySession hands a validated resume to the editor the way an import
      does: a new session, then every step that decides what the next render
-     shows. app.js owns all of it — this file only calls. */
+     shows. The session it was written from stays beside it, intact. */
   const applySession = (resume, name) => {
     newSession(resume, name);
     persist();
@@ -439,7 +555,7 @@
     rerender();
     sync();
     refreshOutput();
-    showView('edit');
+    showEdit();
     out.hidden = true;
     status(label('Nouvelle session : ', 'New session: ') + name);
   };
@@ -603,9 +719,10 @@
         max_tokens: 700,
       });
       let answer = '';
-      for await (const delta of stream) {
-        if (delta && delta.content) {
-          answer += delta.content;
+      for await (const choice of stream) {
+        const piece = choice && choice.delta && choice.delta.content;
+        if (piece) {
+          answer += piece;
           out.textContent = answer;
         }
       }
@@ -617,6 +734,9 @@
           'The model returned nothing: try again.'
         ), 'error');
       }
+      // Kept: « Appliquer les améliorations » will apply exactly what was
+      // proposed here.
+      lastReview = answer;
       const seconds = Math.max(1, Math.round((Date.now() - started) / 1000));
       status(label('Réponse en ', 'Answer in ') + seconds + ' s');
     } catch (err) {
@@ -631,10 +751,75 @@
     }
   };
 
+  /* untouched compares the document a translation came from with the one it
+     came back as, and names every field the rules pinned that the model
+     moved: the lang it forgot to switch, the name it renamed, the contact
+     details it retyped, the URLs it "cleaned", the dates it translated, the
+     entries it dropped. An empty list is a translation that kept its
+     promises. */
+  const untouched = (before, after, target) => {
+    const damaged = [];
+    const eq = (x, y) => String(x || '') === String(y || '');
+    if (!eq(after.lang, target)) damaged.push('lang', target, after.lang);
+    if (!eq(after.name, before.name)) damaged.push('name', before.name, after.name);
+    if (!eq(after.contact && after.contact.email, before.contact && before.contact.email)) {
+      damaged.push('contact.email', before.contact.email, after.contact.email);
+    }
+    if (!eq(after.contact && after.contact.phone, before.contact && before.contact.phone)) {
+      damaged.push('contact.phone', before.contact.phone, after.contact.phone);
+    }
+    // The URLs of the links and the dates of the certifications: a retyped
+    // URL is a dead link, a translated date a document no ATS can sort.
+    const beforeLinks = (before.contact && before.contact.links) || [];
+    const afterLinks = (after.contact && after.contact.links) || [];
+    if (beforeLinks.length !== afterLinks.length) {
+      damaged.push('contact.links', beforeLinks.length, afterLinks.length);
+    }
+    for (let i = 0; i < beforeLinks.length && i < afterLinks.length; i += 1) {
+      if (!eq(afterLinks[i] && afterLinks[i].url, beforeLinks[i] && beforeLinks[i].url)) {
+        damaged.push('contact.links[].url',
+          (beforeLinks[i] && beforeLinks[i].url) || '',
+          (afterLinks[i] && afterLinks[i].url) || '');
+      }
+    }
+    if (before.certifications && after.certifications) {
+      for (let i = 0; i < before.certifications.length && i < after.certifications.length; i += 1) {
+        if (!eq((after.certifications[i] || {}).date, (before.certifications[i] || {}).date)) {
+          damaged.push('certifications[].date',
+            (before.certifications[i] || {}).date,
+            (after.certifications[i] || {}).date);
+        }
+      }
+    }
+    // Every other date of the document, and the size of every section: the
+    // counters are what a dropped entry is.
+    const sections = ['experience', 'education', 'certifications', 'projects', 'activities', 'skills', 'languages'];
+    for (const section of sections) {
+      const from = before[section] || [];
+      const to = after[section] || [];
+      if (from.length !== to.length) {
+        damaged.push(section, from.length, to.length);
+        continue;
+      }
+      for (let i = 0; i < from.length; i += 1) {
+        for (const field of ['start', 'end']) {
+          if (from[i] && from[i][field] !== undefined && !eq(to[i] && to[i][field], from[i][field])) {
+            damaged.push(section + '.' + field, from[i][field], to[i] && to[i][field]);
+          }
+        }
+      }
+    }
+    return damaged;
+  };
+
   /* rewrite is both actions: the draft is validated first (the model must be
-     given a sound baseline), the model returns the whole JSON, and the result
-     goes back through validation before a session opens. Three gates —
-     nothing enters the editor that the server has not accepted. */
+     given a sound baseline), the model returns the whole JSON — constrained
+     by the grammar the server publishes when it can — and the result goes
+     back through validation, and through the untouched comparison for a
+     translation, before a session opens. Three gates — nothing enters the
+     editor that the server has not accepted. One second chance: whatever
+     gate refuses, its reason is handed back to the model as a further
+     message — once, and never in a loop. */
   const rewrite = async (mode) => {
     setBusy(true);
     out.hidden = true;
@@ -656,51 +841,138 @@
       const base = parsed.resume;
       const target = String(base.lang) === 'en' ? 'fr' : 'en';
 
-      phase = 'chat';
-      spin(true);
-      status(mode === 'translate'
-        ? label('Traduction en ' + (target === 'en' ? 'anglais' : 'français') + '…',
-          'Translating into ' + (target === 'en' ? 'English' : 'French') + '…')
-        : label('Réécriture du CV…', 'Rewriting the CV…'), 'waiting');
-      showOut('');
-      const stream = await startChat(rewriteMessages(base, mode, target), {
-        temperature: 0.3,
-        top_p: 0.95,
-        max_tokens: 2500,
-      });
-      let raw = '';
-      for await (const delta of stream) {
-        if (delta && delta.content) {
-          raw += delta.content;
-          out.textContent = raw;
+      // The grammar the server publishes, when the panel could read it: a
+      // constrained rewrite comes back a document by construction. An
+      // endpoint that refuses the response format alone drops the
+      // constraint once — never the rewrite.
+      const schema = await loadGrammar();
+      // The guidance of « Appliquer les améliorations » : what the last
+      // analysis proposed, so the rewrite applies it rather than rewriting
+      // the CV in the dark. No analysis ran yet — the rewrite simply rewords.
+      const suggestions = mode === 'optimize' && lastReview.trim() ? lastReview.trim() : '';
+
+      const messages = rewriteMessages(base, mode, target, suggestions);
+      let attempt = 1;
+      let useGrammar = true;
+      for (;;) {
+        phase = 'chat';
+        streamStop = '';
+        spin(true);
+        status((mode === 'translate'
+          ? label('Traduction en ' + (target === 'en' ? 'anglais' : 'français') + '…',
+            'Translating into ' + (target === 'en' ? 'English' : 'French') + '…')
+          : label('Réécriture du CV…', 'Rewriting the CV…')) +
+          (attempt > 1 ? label(' — nouvelle tentative…', ' — second attempt…') : ''), 'waiting');
+        showOut('');
+        const params = { temperature: 0.3, top_p: 0.95, max_tokens: 2500 };
+        if (useGrammar && schema) params.response_format = responseFormat(schema);
+        let stream;
+        try {
+          stream = await startChat(messages, params);
+        } catch (err) {
+          if (useGrammar && llm && /^HTTP [45]\d\d/.test(String((err && err.message) || ''))) {
+            useGrammar = false; // the format refused, not the rewrite: drop it once
+            continue;
+          }
+          throw err;
         }
-      }
-      outDone();
+        let raw = '';
+        for await (const choice of stream) {
+          const piece = choice && choice.delta && choice.delta.content;
+          if (piece) {
+            raw += piece;
+            out.textContent = raw;
+          }
+        }
+        outDone();
 
-      // The raw answer stays on screen from here: if it is refused, it is
-      // what the reader needs to see, and if it is accepted it is replaced
-      // by the form it just filled.
-      let candidate;
-      try {
-        candidate = extractJSON(raw);
-      } catch (e) {
-        return status((e && e.message) || String(e), 'error');
-      }
-      status(label('Validation du JSON…', 'Validating the JSON…'), 'waiting');
-      const checked = await validate(candidate);
-      if (!checked.ok) {
-        return status(checked.error || label(
-          'Le modèle a renvoyé un JSON refusé : réessayez.',
-          'The model returned a JSON that was refused: try again.'
-        ), 'error');
-      }
+        // A cut answer is not a bad document: the stop reason tells them
+        // apart, and the cut one is what the second attempt is told about.
+        if (streamStop === 'length' && attempt < 2) {
+          messages.push({ role: 'user', content: label(
+            'Ta réponse a été coupée avant la fin. Renvoie le JSON complet, en entier, sans le couper.',
+            'Your answer was cut before the end. Send the complete JSON, whole, without cutting it.'
+          ) });
+          attempt += 1;
+          continue;
+        }
+        if (streamStop === 'length') {
+          return status(label(
+            'La réponse a été coupée : la limite de tokens a été atteinte avant la fin du JSON.',
+            'The answer was cut: the token limit was reached before the end of the JSON.'
+          ), 'error');
+        }
 
-      const baseName = (checked.resume.name || '').trim() ||
-        (typeof T !== 'undefined' ? T.unnamed() : 'Sans titre');
-      const name = mode === 'translate'
-        ? baseName + ' — ' + target.toUpperCase()
-        : baseName + label(' — optimisé', ' — optimized');
-      applySession(checked.resume, name);
+        // The raw answer stays on screen from here: if it is refused, it is
+        // what the reader needs to see, and if it is accepted it is replaced
+        // by the form it just filled.
+        let candidate;
+        try {
+          candidate = extractJSON(raw);
+        } catch (e) {
+          const defect = (e && e.message) || String(e);
+          if (attempt < 2) {
+            messages.push({ role: 'user', content: label(
+              'Ta réponse précédente ne contenait pas le JSON complet. Renvoie UNIQUEMENT le JSON complet, sans commentaire ni bloc de code. La raison : ',
+              'Your previous answer did not contain the whole JSON. Send ONLY the complete JSON, no comment and no code fence. The reason: '
+            ) + defect + label('. Réessaie avec le JSON complet.', '. Send the complete JSON now.') });
+            attempt += 1;
+            continue;
+          }
+          return status(defect, 'error');
+        }
+        status(label('Validation du JSON…', 'Validating the JSON…'), 'waiting');
+        const checked = await validate(candidate);
+        if (!checked.ok) {
+          const defect = checked.error || label(
+            'Le modèle a renvoyé un JSON refusé.',
+            'The model returned a JSON that was refused.'
+          );
+          if (attempt < 2) {
+            messages.push({ role: 'user', content: label(
+              'Le validateur a refusé ton JSON avec cette erreur : ',
+              'The validator refused your JSON with this error: '
+            ) + defect + label(
+              '. Corrige exactement ce défaut et renvoie le JSON complet corrigé.',
+              '. Fix exactly that defect and send the corrected complete JSON.'
+            ) });
+            attempt += 1;
+            continue;
+          }
+          return status(defect, 'error');
+        }
+
+        // The translation is read back against the document it came from:
+        // its verdict travels the same road as a refusal from the server,
+        // second chance included.
+        const damaged = mode === 'translate' ? untouched(base, checked.resume, target) : [];
+        if (damaged.length) {
+          const hurt = damaged.join(', ');
+          if (attempt < 2) {
+            messages.push({ role: 'user', content: label(
+              'Ta réponse a perdu ou modifié des champs qu\'une traduction ne doit pas toucher : ',
+              'Your answer lost or altered fields a translation must not touch: '
+            ) + hurt + label(
+              '. Renvoie le JSON complet, avec ces champs rigoureusement identiques.',
+              '. Send the complete JSON, with those fields strictly identical.'
+            ) });
+            attempt += 1;
+            continue;
+          }
+          return status(label(
+            'La traduction a altéré le document : ',
+            'The translation altered the document: '
+          ) + hurt, 'error');
+        }
+
+        const baseName = (checked.resume.name || '').trim() ||
+          (typeof T !== 'undefined' ? T.unnamed() : 'Sans titre');
+        const name = mode === 'translate'
+          ? baseName + ' — ' + target.toUpperCase()
+          : baseName + label(' — optimisé', ' — optimized');
+        applySession(checked.resume, name);
+        return;
+      }
     } catch (err) {
       if (phase === 'chat') engine = null;
       out.hidden = true;
@@ -714,8 +986,9 @@
   };
 
   run.addEventListener('click', () => review());
-  // The two rewrites live behind the buttons the page chooses to ship: a
-  // commented-out button gets no listener and costs nothing.
+  // The two rewrites ship with the page: « Appliquer les améliorations »
+  // opens a new version guided by the last analysis, « Traduire » opens one
+  // in the other language — neither touches the session under the editor.
   if (optimize) optimize.addEventListener('click', () => rewrite('optimize'));
   if (translate) translate.addEventListener('click', () => rewrite('translate'));
   // The offer: fetch on click or on Enter, clear on the clear button, and the

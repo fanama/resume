@@ -515,6 +515,9 @@ button.danger:hover { border-color: var(--error); color: var(--error); }
 /* ---- the analysis panel ---- */
 
 .ia-controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+/* L'indice sous les trois actions : ce que chacune fait, et qu'aucune ne
+   touche la session qui reste ouverte dans l'éditeur. */
+.ia-controls-hint { width: 100%; margin: 2px 0 0; font-size: 0.85em; }
 #ia-out { margin-top: 12px; }
 
 /* The offer block sits between the run buttons and the panel: the URL of an
