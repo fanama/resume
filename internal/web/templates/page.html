@@ -144,51 +144,16 @@
           ran; « Traduire » opens a new version in the other language. Neither
           rewrite touches the session under the editor: the original stays.
         -->
-        <button type="button" id="ia-run">Analyser le CV</button>
-        <button type="button" id="ia-optimize" title="Ouvre une nouvelle version du CV avec les améliorations appliquées">Appliquer les améliorations IA</button>
-        <button type="button" id="ia-translate" title="Ouvre une nouvelle version du CV traduite">Traduire le CV</button>
-        <span class="ia-spinner" id="ia-spinner" hidden aria-hidden="true"></span>
+        <div class="ia-actions">
+          <button type="button" id="ia-run" class="primary">Analyser le CV</button>
+          <button type="button" id="ia-optimize" class="secondary" title="Ouvre une nouvelle version du CV avec les améliorations appliquées">Appliquer les améliorations IA</button>
+          <button type="button" id="ia-translate" class="secondary" title="Ouvre une nouvelle version du CV traduite">Traduire le CV</button>
+          <span class="ia-spinner" id="ia-spinner" hidden aria-hidden="true"></span>
+        </div>
         <span id="ia-status" class="muted" role="status" aria-live="polite"></span>
-        <p class="muted ia-controls-hint">« Analyser » écrit des conseils dans le panneau ; « Appliquer » et « Traduire » ouvrent une nouvelle version (session) du CV — la version d'origine reste intacte.</p>
+        <p class="muted ia-controls-hint">« Analyser » écrit ses conseils ici ; « Appliquer » et « Traduire » ouvrent une nouvelle version du CV — l’originale reste intacte. Le CV ne quitte la page que si vous nommez un fournisseur ci-dessous.</p>
       </div>
-      <!--
-        The offer block: a URL pasted here is fetched by the server, because a
-        browser would stop at the CORS wall of every job board it tried to
-        read directly. Only the URL leaves this page — the resume never rides
-        along — and the readable text of the offer is kept in this browser's
-        storage, beside the draft. The next run of the analysis reads it, so
-        its answer is a comparison and not a review in the dark.
-      -->
-      <div class="ia-offer">
-        <label class="ia-offer-label" for="ia-url">Offre d’emploi à comparer au CV</label>
-        <div class="ia-offer-controls">
-          <input type="url" id="ia-url" spellcheck="false" autocomplete="off" placeholder="https://exemple.fr/annonce">
-          <button type="button" id="ia-job">Récupérer l’offre</button>
-        </div>
-        <p class="muted" id="ia-offer" hidden></p>
-        <button type="button" id="ia-offer-clear" class="danger" hidden>Retirer l’offre enregistrée</button>
-        <p class="muted ia-offer-hint">La page de l’offre est récupérée par le serveur et gardée dans ce navigateur : la prochaine analyse comparera le CV à cette offre.</p>
-      </div>
-      <!--
-        The provider block: an OpenAI-compatible endpoint the reader owns —
-        api.openai.com, Mistral, a local Ollama or llama.cpp server — is typed
-        here, and the next analyses call it instead of the model that runs in
-        the browser. The three fields are kept in this browser's storage, like
-        the saved offer: the base URL and the model name, the key that the
-        endpoint asks for (empty for a local runtime). Leaving it turns the
-        panel back to the local MiniCPM; the resume then goes, again, nowhere.
-      -->
-      <div class="ia-provider">
-        <label class="ia-provider-label" for="ia-provider-url">Fournisseur compatible OpenAI</label>
-        <div class="ia-provider-controls">
-          <input type="url" id="ia-provider-url" spellcheck="false" autocomplete="off" placeholder="https://api.openai.com/v1" aria-label="URL de base du fournisseur">
-          <input type="text" id="ia-provider-model" spellcheck="false" autocomplete="off" placeholder="gpt-4o-mini" aria-label="Nom du modèle">
-          <input type="password" id="ia-provider-key" spellcheck="false" autocomplete="off" placeholder="Clé API" aria-label="Clé API">
-          <button type="button" id="ia-provider-save">Utiliser ce fournisseur</button>
-        </div>
-        <p class="muted ia-provider-hint">La base doit finir par <code>/v1</code> si l'API le veut : les prochaines analyses appelleront <code>…/chat/completions</code> avec ce modèle. Sans clé (Ollama, llama.cpp), le champ peut rester vide.</p>
-        <button type="button" id="ia-provider-clear" class="danger" hidden>Revenir au modèle local</button>
-      </div>
+      <p class="empty" id="ia-note">Analyse locale avec un modèle MiniCPM exécuté par WebGPU dans ce navigateur : le CV ne quitte jamais la machine. Premier lancement : téléchargement d’environ 1,4 Go, mis en cache ensuite.</p>
       <!--
         The bar only appears while the model is being downloaded — the one
         phase that lasts long enough to need one. Its width never comes from a
@@ -199,8 +164,53 @@
         <progress id="ia-bar" max="100" value="0"></progress>
         <span class="muted ia-pct" id="ia-pct">0 %</span>
       </div>
-      <p class="empty" id="ia-note">Analyse locale avec un modèle MiniCPM exécuté par WebGPU dans ce navigateur : le CV ne quitte jamais la machine. Premier lancement : téléchargement d’environ 1,4 Go, mis en cache ensuite.</p>
       <div id="ia-out" class="plaintext" hidden></div>
+      <!--
+        The offer block: a URL pasted here is fetched by the server, because a
+        browser would stop at the CORS wall of every job board it tried to
+        read directly. Only the URL leaves this page — the resume never rides
+        along — and the readable text of the offer is kept in this browser's
+        storage, beside the draft. The next run of the analysis reads it, so
+        its answer is a comparison and not a review in the dark.
+      -->
+      <section class="ia-card ia-offer" aria-label="Offre d’emploi à comparer au CV">
+        <div class="ia-offer-head">
+          <label class="ia-card-title" for="ia-url">Offre d’emploi à comparer au CV</label>
+          <button type="button" id="ia-offer-clear" class="danger" hidden>Retirer l’offre</button>
+        </div>
+        <div class="ia-offer-controls">
+          <input type="url" id="ia-url" spellcheck="false" autocomplete="off" placeholder="https://exemple.fr/annonce" aria-label="URL de l’offre d’emploi">
+          <button type="button" id="ia-job">Récupérer l’offre</button>
+        </div>
+        <p class="muted" id="ia-offer" hidden></p>
+        <p class="muted ia-offer-hint">La page est récupérée par le serveur et gardée dans ce navigateur : la prochaine analyse comparera le CV à cette offre.</p>
+      </section>
+      <!--
+        The provider block: an OpenAI-compatible endpoint the reader owns —
+        api.openai.com, Mistral, a local Ollama or llama.cpp server — is typed
+        here, and the next analyses call it instead of the model that runs in
+        the browser. The three fields are kept in this browser's storage, like
+        the saved offer: the base URL and the model name, the key that the
+        endpoint asks for (empty for a local runtime). Leaving it turns the
+        panel back to the local MiniCPM; the resume then goes, again, nowhere.
+        It is a native <details>: closed, it reads as one quiet line that says
+        which endpoint — if any — the panel currently calls; open, it carries
+        its three fields. The folding is the browser's own, no script asked.
+      -->
+      <details class="ia-card ia-provider" id="ia-provider-card">
+        <summary>
+          <span class="ia-card-title">Fournisseur compatible OpenAI</span>
+          <span class="muted ia-provider-state" id="ia-provider-state">aucun — le modèle local est utilisé</span>
+        </summary>
+        <div class="ia-provider-controls">
+          <input type="url" id="ia-provider-url" spellcheck="false" autocomplete="off" placeholder="https://api.openai.com/v1" aria-label="URL de base du fournisseur">
+          <input type="text" id="ia-provider-model" spellcheck="false" autocomplete="off" placeholder="gpt-4o-mini" aria-label="Nom du modèle">
+          <input type="password" id="ia-provider-key" spellcheck="false" autocomplete="off" placeholder="Clé API" aria-label="Clé API">
+          <button type="button" id="ia-provider-save">Utiliser ce fournisseur</button>
+        </div>
+        <p class="muted ia-provider-hint">La base doit finir par <code>/v1</code> si l'API le veut : les prochaines analyses appelleront <code>…/chat/completions</code> avec ce modèle. Sans clé (Ollama, llama.cpp), le champ peut rester vide.</p>
+        <button type="button" id="ia-provider-clear" class="danger" hidden>Revenir au modèle local</button>
+      </details>
     </div>
 
     <div class="downloads">

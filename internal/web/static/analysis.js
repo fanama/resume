@@ -64,6 +64,11 @@
   const provKey = document.getElementById('ia-provider-key');
   const provSave = document.getElementById('ia-provider-save');
   const provClear = document.getElementById('ia-provider-clear');
+  // The provider card is a native <details>: its summary carries the state
+  // (which endpoint the panel calls), and the card keeps itself open exactly
+  // while a provider is active — nothing to unfold to see where the CV goes.
+  const providerCard = document.getElementById('ia-provider-card');
+  const providerState = document.getElementById('ia-provider-state');
   const note = document.getElementById('ia-note');
   const statusNode = document.getElementById('ia-status');
   const out = document.getElementById('ia-out');
@@ -112,6 +117,12 @@
 
   const renderProvider = () => {
     llm = loadLLM();
+    if (providerState) {
+      providerState.textContent = llm
+        ? label('actif : ' + llm.model + ' — modifier', 'active: ' + llm.model + ' — edit')
+        : label('aucun — le modèle local est utilisé', 'none — the local model is used');
+    }
+    if (providerCard) providerCard.open = Boolean(llm);
     if (!note) return;
     if (llm) {
       const host = String(llm.baseUrl).replace(/^https?:\/\//, '').split('/')[0];
