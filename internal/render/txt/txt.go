@@ -20,39 +20,43 @@ func Render(l *layout.Layout) string {
 		}
 	}
 	for _, blk := range l.Blocks {
-		switch blk.Kind {
-		case layout.KindSummary:
-			if blk.Text == "" {
-				write("\n")
-				continue
-			}
-			write(wrap(blk.Text, 92) + "\n")
-		case layout.KindBullet:
-			write("- " + wrap(blk.Text, 90) + "\n")
-		case layout.KindField:
-			if blk.Bold != "" {
-				write(wrap(blk.Bold+": "+blk.Text, 92) + "\n")
-			} else {
-				write(wrap(blk.Text, 92) + "\n")
-			}
-		case layout.KindEntryTitle:
-			line := blk.Text
-			if blk.Dim != "" {
-				line += " | " + blk.Dim
-			}
-			write(wrap(line, 92) + "\n")
-		case layout.KindSection:
+		if blk.Kind == layout.KindSection {
 			// A heading always starts a fresh paragraph, with a blank line
 			// above it unless the document just began.
 			if b.Len() > 0 && blank == 0 {
 				write("\n")
 			}
 			write(blk.Text + "\n")
-		default:
-			write(wrap(blk.Text, 92) + "\n")
+			continue
 		}
+		if blk.Kind == layout.KindSummary && blk.Text == "" {
+			write("\n")
+			continue
+		}
+		write(blockText(blk) + "\n")
 	}
 	return b.String()
+}
+
+// blockText is the wrapped body line of a block.
+func blockText(blk layout.Block) string {
+	switch blk.Kind {
+	case layout.KindBullet:
+		return "- " + wrap(blk.Text, 90)
+	case layout.KindField:
+		if blk.Bold != "" {
+			return wrap(blk.Bold+": "+blk.Text, 92)
+		}
+		return wrap(blk.Text, 92)
+	case layout.KindEntryTitle:
+		line := blk.Text
+		if blk.Dim != "" {
+			line += " | " + blk.Dim
+		}
+		return wrap(line, 92)
+	default:
+		return wrap(blk.Text, 92)
+	}
 }
 
 // wrap hard-wraps a paragraph on word boundaries.

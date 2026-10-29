@@ -31,18 +31,31 @@ func Render(l *layout.Layout, opts Options) string {
 	if lang == "" {
 		lang = model.LangFR
 	}
-	title := "Resume"
-	for _, b := range l.Blocks {
-		if b.Kind == layout.KindName {
-			// An empty name still has to produce a valid document title.
-			if name := strings.TrimSpace(b.Text); name != "" {
-				title = name
-			}
-			break
-		}
-	}
-
 	var b strings.Builder
+	writeFrontMatter(&b, documentTitle(l), lang, opts)
+	headline, contacts := identityLines(l)
+	writeIdentity(&b, headline, contacts)
+	writeBody(&b, l, opts.SectionRules)
+	return b.String()
+}
+
+// documentTitle is the name the document is titled with, and "Resume" when the
+// layout has none: an empty name still has to produce a valid title.
+func documentTitle(l *layout.Layout) string {
+	for _, b := range l.Blocks {
+		if b.Kind != layout.KindName {
+			continue
+		}
+		if name := strings.TrimSpace(b.Text); name != "" {
+			return name
+		}
+		break
+	}
+	return "Resume"
+}
+
+// writeFrontMatter prints the optional comment and the document attributes.
+func writeFrontMatter(b *strings.Builder, title string, lang model.Lang, opts Options) {
 	if opts.Header != "" {
 		for _, line := range strings.Split(strings.TrimRight(opts.Header, "\n"), "\n") {
 			b.WriteString("// " + line + "\n")
@@ -63,10 +76,11 @@ func Render(l *layout.Layout, opts Options) string {
 	b.WriteString(":pdf-margin-bottom: 16mm\n")
 	b.WriteString(":outfilesuffix: .pdf\n")
 	b.WriteString("\n")
+}
 
-	// The name is the document title, so it is not repeated in the body.
-	var headline string
-	var contacts []string
+// identityLines collects the headline and the contact lines, which the body
+// does not repeat.
+func identityLines(l *layout.Layout) (headline string, contacts []string) {
 	for _, blk := range l.Blocks {
 		switch blk.Kind {
 		case layout.KindHeadline:
@@ -77,13 +91,21 @@ func Render(l *layout.Layout, opts Options) string {
 			contacts = append(contacts, blk.Text)
 		}
 	}
+	return headline, contacts
+}
+
+// writeIdentity prints the headline and the contacts, centred.
+func writeIdentity(b *strings.Builder, headline string, contacts []string) {
 	if headline != "" {
 		b.WriteString("\n[.text-center]\n*" + headline + "*\n")
 	}
 	if len(contacts) > 0 {
 		b.WriteString("\n[.text-center]\n" + strings.Join(contacts, " +\n") + "\n")
 	}
+}
 
+// writeBody prints the sections and their content, in the order of the layout.
+func writeBody(b *strings.Builder, l *layout.Layout, rules bool) {
 	gap := false
 	for _, blk := range l.Blocks {
 		switch blk.Kind {
@@ -95,7 +117,7 @@ func Render(l *layout.Layout, opts Options) string {
 			b.WriteString("\n" + blk.Text + "\n")
 		case layout.KindSection:
 			b.WriteString("\n== " + blk.Text + "\n")
-			if opts.SectionRules {
+			if rules {
 				b.WriteString("\n'''\n")
 			}
 		case layout.KindName, layout.KindHeadline, layout.KindContact:
@@ -120,7 +142,6 @@ func Render(l *layout.Layout, opts Options) string {
 		}
 		gap = false
 	}
-	return b.String()
 }
 
 func gapLine(gap bool) string {

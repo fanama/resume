@@ -49,6 +49,24 @@ type staticAsset struct {
 // a browser holding the raw bytes must not satisfy a compressed request with a
 // 304 that points at them.
 func serveAssets(fsys fs.FS) http.Handler {
+	assets := loadAssets(fsys)
+	files := http.FileServer(http.FS(fsys))
+
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		name := strings.TrimPrefix(r.URL.Path, "/")
+		a, ok := assets[name]
+		if !ok {
+			// Not one of ours: a missing file keeps the answer of the file
+			// server, which is the 404 that says so.
+			files.ServeHTTP(w, r)
+			return
+		}
+		serveAsset(w, r, name, a)
+	})
+}
+
+// loadAssets reads and compresses every embedded file once.
+func loadAssets(fsys fs.FS) map[string]staticAsset {
 	assets := make(map[string]staticAsset)
 	_ = fs.WalkDir(fsys, ".", func(p string, d fs.DirEntry, err error) error {
 		if err != nil || d.IsDir() {
@@ -65,49 +83,43 @@ func serveAssets(fsys fs.FS) http.Handler {
 		assets[p] = a
 		return nil
 	})
-	files := http.FileServer(http.FS(fsys))
+	return assets
+}
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		name := strings.TrimPrefix(r.URL.Path, "/")
-		a, ok := assets[name]
-		if !ok {
-			// Not one of ours: a missing file keeps the answer of the file
-			// server, which is the 404 that says so.
-			files.ServeHTTP(w, r)
-			return
-		}
-		body, tag := a.raw, a.rawTag
-		gzipped := a.gz != nil && acceptsGzip(r)
-		if gzipped {
-			body, tag = a.gz, a.gzTag
-		}
-		h := w.Header()
-		if gzipped {
-			// Set before the validator: a 304 describes the representation the
-			// client asked for, encoding included.
-			h.Set("Content-Encoding", "gzip")
-		}
-		h.Set("ETag", tag)
-		// no-cache, not no-store: the file is kept, and revalidated on the next
-		// load. An unchanged answer is a 304 with no body.
-		h.Set("Cache-Control", "no-cache")
-		h.Set("Vary", "Accept-Encoding")
-		if matchesETag(r.Header.Get("If-None-Match"), tag) {
-			w.WriteHeader(http.StatusNotModified)
-			return
-		}
-		// The type is decided from the original bytes: a compressed body
-		// sniffs as a gzip archive and the browser would download the script
-		// instead of running it.
-		if ct := mime.TypeByExtension(path.Ext(name)); ct != "" {
-			h.Set("Content-Type", ct)
-		} else {
-			h.Set("Content-Type", http.DetectContentType(a.raw))
-		}
-		h.Set("Content-Length", strconv.Itoa(len(body)))
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write(body)
-	})
+// serveAsset answers one embedded file, in the representation the client asked
+// for, with that representation's validator.
+func serveAsset(w http.ResponseWriter, r *http.Request, name string, a staticAsset) {
+	body, tag := a.raw, a.rawTag
+	gzipped := a.gz != nil && acceptsGzip(r)
+	if gzipped {
+		body, tag = a.gz, a.gzTag
+	}
+	h := w.Header()
+	if gzipped {
+		// Set before the validator: a 304 describes the representation the
+		// client asked for, encoding included.
+		h.Set("Content-Encoding", "gzip")
+	}
+	h.Set("ETag", tag)
+	// no-cache, not no-store: the file is kept, and revalidated on the next
+	// load. An unchanged answer is a 304 with no body.
+	h.Set("Cache-Control", "no-cache")
+	h.Set("Vary", "Accept-Encoding")
+	if matchesETag(r.Header.Get("If-None-Match"), tag) {
+		w.WriteHeader(http.StatusNotModified)
+		return
+	}
+	// The type is decided from the original bytes: a compressed body sniffs as
+	// a gzip archive and the browser would download the script instead of
+	// running it.
+	if ct := mime.TypeByExtension(path.Ext(name)); ct != "" {
+		h.Set("Content-Type", ct)
+	} else {
+		h.Set("Content-Type", http.DetectContentType(a.raw))
+	}
+	h.Set("Content-Length", strconv.Itoa(len(body)))
+	w.WriteHeader(http.StatusOK)
+	_, _ = w.Write(body)
 }
 
 // tagOf is the validator of a body: a hash of the bytes, quoted the way a

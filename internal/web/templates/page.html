@@ -193,6 +193,17 @@
       </div>
       <p class="empty" id="ia-note">Analyse locale avec un modèle MiniCPM exécuté par WebGPU dans ce navigateur : le CV ne quitte jamais la machine. Premier lancement : téléchargement d’environ 1,4 Go, mis en cache ensuite.</p>
       <!--
+        The model that runs in the browser is a choice, not a constant: the
+        options belong to analysis.js, beside the records they name, so this
+        page only carries the select. The choice is kept in the browser beside
+        the draft, and applied on the next run — a select must not start a
+        download by itself.
+      -->
+      <div class="ia-model">
+        <label class="muted" for="ia-model">Modèle local</label>
+        <select id="ia-model" aria-label="Modèle local exécuté par WebGPU"></select>
+      </div>
+      <!--
         The bar only appears while the model is being downloaded — the one
         phase that lasts long enough to need one. Its width never comes from a
         style attribute: the CSP forbids inline style, so the value is the
@@ -230,7 +241,7 @@
         the browser. The three fields are kept in this browser's storage, like
         the saved offer: the base URL and the model name, the key that the
         endpoint asks for (empty for a local runtime). Leaving it turns the
-        panel back to the local MiniCPM; the resume then goes, again, nowhere.
+        panel back to the local model; the resume then goes, again, nowhere.
         It is a native <details>: closed, it reads as one quiet line that says
         which endpoint — if any — the panel currently calls; open, it carries
         its three fields. The folding is the browser's own, no script asked.

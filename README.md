@@ -567,11 +567,13 @@ L'onglet « Analyse IA » de l'éditeur propose trois actions en un seul endroit
 **« Analyser le CV »** relit le CV et écrit ses conseils — points forts,
 problèmes, réécritures prêtes à coller ; **« Appliquer les améliorations IA »**
 ouvre une nouvelle version du CV avec les suggestions appliquées ;
-**« Traduire le CV »** en ouvre une dans l'autre langue. Les deux reécritures
-travaillent avec le modèle **MiniCPM5-2B** qui tourne dans le navigateur
-lui-même, via WebLLM et WebGPU, ou avec le fournisseur que vous nommez
-ci-dessous. Le CV ne quitte toujours que la page : aucune requête ne le
-transporte, sauf vers le fournisseur choisi.
+**« Traduire le CV »** en ouvre une dans l'autre langue. Les deux réécritures
+travaillent avec un modèle qui tourne dans le navigateur lui-même, via WebLLM
+et WebGPU, ou avec le fournisseur que vous nommez ci-dessous. Le modèle local
+se choisit dans le panneau : **MiniCPM5-2B** par défaut, ou Llama 3.2 1B/3B et
+Qwen 2.5 1.5B, chacun avec son poids de téléchargement affiché. Le CV ne
+quitte toujours que la page : aucune requête ne le transporte, sauf vers le
+fournisseur choisi.
 
 Trois faits à connaître :
 
@@ -590,8 +592,10 @@ Trois faits à connaître :
   ci-dessous — c'est le seul endroit où le CV peut passer, et il n'y passe que
   si vous y tapez une URL.
 
-Le modèle (`vs4vijay/MiniCPM5-2B-MLC`, quantification q4f16_1) et le prompt
-sont déclarés dans `internal/web/static/analysis.js`. Le panneau envoie au
+Les modèles proposés (dont `vs4vijay/MiniCPM5-2B-MLC`, quantification q4f16_1,
+le seul à demander un enregistrement MLC écrit à la main) et le prompt sont
+déclarés dans `internal/web/static/analysis.js` ; le choix est gardé dans le
+navigateur, à côté du brouillon, et appliqué au lancement suivant. Le panneau envoie au
 modèle exactement ce que la vue « Texte brut » montre — l'ordre de lecture
 qu'un parseur extrait — et la réponse est rendue de manière lisible : un
 petit analyseur markdown maison transforme ses rubriques en titres et listes,

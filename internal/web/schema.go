@@ -108,85 +108,120 @@ func IdentitySchema() Section {
 // Sections is the full editor schema, in the order the renderer prints them.
 func Sections() []Section {
 	return []Section{
-		{
-			Key: "experience", LabelFR: "Expérience", LabelEN: "Experience",
-			EntryFR: "poste", EntryEN: "job",
-			Fields: []Field{
-				{Key: "title", Kind: FieldText, LabelFR: "Poste", LabelEN: "Title"},
-				{Key: "company", Kind: FieldText, LabelFR: "Entreprise", LabelEN: "Company"},
-				{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
-				{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Placeholder: "2023", Mono: true},
-				{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Placeholder: "present", Mono: true},
-				{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
-				{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
-				{Key: "team", Kind: FieldText, LabelFR: "Équipe", LabelEN: "Team"},
-				{Key: "stack", Kind: FieldList, LabelFR: "Technologies", LabelEN: "Technologies"},
-			},
+		experienceSection(),
+		educationSection(),
+		skillsSection(),
+		certificationsSection(),
+		projectsSection(),
+		activitiesSection(),
+		languagesSection(),
+	}
+}
+
+// experienceSection is one section of the editor, entry by entry.
+func experienceSection() Section {
+	return Section{
+		Key: "experience", LabelFR: "Expérience", LabelEN: "Experience",
+		EntryFR: "poste", EntryEN: "job",
+		Fields: []Field{
+			{Key: "title", Kind: FieldText, LabelFR: "Poste", LabelEN: "Title"},
+			{Key: "company", Kind: FieldText, LabelFR: "Entreprise", LabelEN: "Company"},
+			{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
+			{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Placeholder: "2023", Mono: true},
+			{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Placeholder: "present", Mono: true},
+			{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
+			{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
+			{Key: "team", Kind: FieldText, LabelFR: "Équipe", LabelEN: "Team"},
+			{Key: "stack", Kind: FieldList, LabelFR: "Technologies", LabelEN: "Technologies"},
 		},
-		{
-			Key: "education", LabelFR: "Formation", LabelEN: "Education",
-			EntryFR: "diplôme", EntryEN: "degree",
-			Fields: []Field{
-				{Key: "degree", Kind: FieldText, LabelFR: "Diplôme", LabelEN: "Degree"},
-				{Key: "school", Kind: FieldText, LabelFR: "École", LabelEN: "School"},
-				{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
-				{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
-				{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
-				{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
-				{Key: "coursework", Kind: FieldList, LabelFR: "Matières", LabelEN: "Coursework"},
-			},
+	}
+}
+
+// educationSection is one section of the editor, entry by entry.
+func educationSection() Section {
+	return Section{
+		Key: "education", LabelFR: "Formation", LabelEN: "Education",
+		EntryFR: "diplôme", EntryEN: "degree",
+		Fields: []Field{
+			{Key: "degree", Kind: FieldText, LabelFR: "Diplôme", LabelEN: "Degree"},
+			{Key: "school", Kind: FieldText, LabelFR: "École", LabelEN: "School"},
+			{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
+			{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
+			{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
+			{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
+			{Key: "coursework", Kind: FieldList, LabelFR: "Matières", LabelEN: "Coursework"},
 		},
-		{
-			Key: "skills", LabelFR: "Compétences", LabelEN: "Skills",
-			EntryFR: "catégorie", EntryEN: "category",
-			Fields: []Field{
-				{Key: "category", Kind: FieldText, LabelFR: "Catégorie", LabelEN: "Category"},
-				{Key: "items", Kind: FieldList, LabelFR: "Éléments", LabelEN: "Items"},
-			},
+	}
+}
+
+// skillsSection is one section of the editor, entry by entry.
+func skillsSection() Section {
+	return Section{
+		Key: "skills", LabelFR: "Compétences", LabelEN: "Skills",
+		EntryFR: "catégorie", EntryEN: "category",
+		Fields: []Field{
+			{Key: "category", Kind: FieldText, LabelFR: "Catégorie", LabelEN: "Category"},
+			{Key: "items", Kind: FieldList, LabelFR: "Éléments", LabelEN: "Items"},
 		},
-		{
-			Key: "certifications", LabelFR: "Certifications", LabelEN: "Certifications",
-			EntryFR: "certification", EntryEN: "certification",
-			Fields: []Field{
-				{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
-				{Key: "issuer", Kind: FieldText, LabelFR: "Organisme", LabelEN: "Issuer"},
-				{Key: "date", Kind: FieldDate, LabelFR: "Date", LabelEN: "Date", Mono: true},
-				{Key: "id", Kind: FieldText, LabelFR: "Identifiant", LabelEN: "ID", Mono: true},
-			},
+	}
+}
+
+// certificationsSection is one section of the editor, entry by entry.
+func certificationsSection() Section {
+	return Section{
+		Key: "certifications", LabelFR: "Certifications", LabelEN: "Certifications",
+		EntryFR: "certification", EntryEN: "certification",
+		Fields: []Field{
+			{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
+			{Key: "issuer", Kind: FieldText, LabelFR: "Organisme", LabelEN: "Issuer"},
+			{Key: "date", Kind: FieldDate, LabelFR: "Date", LabelEN: "Date", Mono: true},
+			{Key: "id", Kind: FieldText, LabelFR: "Identifiant", LabelEN: "ID", Mono: true},
 		},
-		{
-			Key: "projects", LabelFR: "Projets", LabelEN: "Projects",
-			EntryFR: "projet", EntryEN: "project",
-			Fields: []Field{
-				{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
-				{Key: "url", Kind: FieldText, LabelFR: "URL", LabelEN: "URL", Mono: true},
-				{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
-				{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
-				{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
-				{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
-				{Key: "technologies", Kind: FieldList, LabelFR: "Technologies", LabelEN: "Technologies"},
-			},
+	}
+}
+
+// projectsSection is one section of the editor, entry by entry.
+func projectsSection() Section {
+	return Section{
+		Key: "projects", LabelFR: "Projets", LabelEN: "Projects",
+		EntryFR: "projet", EntryEN: "project",
+		Fields: []Field{
+			{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
+			{Key: "url", Kind: FieldText, LabelFR: "URL", LabelEN: "URL", Mono: true},
+			{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
+			{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
+			{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
+			{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
+			{Key: "technologies", Kind: FieldList, LabelFR: "Technologies", LabelEN: "Technologies"},
 		},
-		{
-			Key: "activities", LabelFR: "Activités", LabelEN: "Activities",
-			EntryFR: "activité", EntryEN: "activity",
-			Fields: []Field{
-				{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
-				{Key: "organization", Kind: FieldText, LabelFR: "Organisation", LabelEN: "Organization"},
-				{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
-				{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
-				{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
-				{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
-				{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
-			},
+	}
+}
+
+// activitiesSection is one section of the editor, entry by entry.
+func activitiesSection() Section {
+	return Section{
+		Key: "activities", LabelFR: "Activités", LabelEN: "Activities",
+		EntryFR: "activité", EntryEN: "activity",
+		Fields: []Field{
+			{Key: "name", Kind: FieldText, LabelFR: "Nom", LabelEN: "Name"},
+			{Key: "organization", Kind: FieldText, LabelFR: "Organisation", LabelEN: "Organization"},
+			{Key: "location", Kind: FieldText, LabelFR: "Lieu", LabelEN: "Location"},
+			{Key: "start", Kind: FieldDate, LabelFR: "Début", LabelEN: "Start", Mono: true},
+			{Key: "end", Kind: FieldDate, LabelFR: "Fin", LabelEN: "End", Mono: true},
+			{Key: "summary", Kind: FieldTextarea, LabelFR: "Description", LabelEN: "Description"},
+			{Key: "highlights", Kind: FieldList, LabelFR: "Réalisations", LabelEN: "Achievements"},
 		},
-		{
-			Key: "languages", LabelFR: "Langues", LabelEN: "Languages",
-			EntryFR: "langue", EntryEN: "language",
-			Fields: []Field{
-				{Key: "name", Kind: FieldText, LabelFR: "Langue", LabelEN: "Language"},
-				{Key: "level", Kind: FieldText, LabelFR: "Niveau", LabelEN: "Level"},
-			},
+	}
+}
+
+// languagesSection is one section of the editor, entry by entry.
+func languagesSection() Section {
+	return Section{
+		Key: "languages", LabelFR: "Langues", LabelEN: "Languages",
+		EntryFR: "langue", EntryEN: "language",
+		Fields: []Field{
+			{Key: "name", Kind: FieldText, LabelFR: "Langue", LabelEN: "Language"},
+			{Key: "level", Kind: FieldText, LabelFR: "Niveau", LabelEN: "Level"},
 		},
 	}
 }

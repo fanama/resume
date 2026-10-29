@@ -693,6 +693,8 @@ button.secondary:hover { background: var(--bg); }
 #ia-provider-model { flex: 0 1 11rem; min-width: 0; }
 #ia-provider-key { flex: 0 1 9rem; min-width: 0; }
 .ia-provider-hint { margin: 0; }
+.ia-model { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+#ia-model { flex: 0 1 20rem; min-width: 0; }
 #ia-provider-clear { align-self: flex-start; }
 
 /* The spinner marks every phase the reader waits for: engine, download,

@@ -32,7 +32,6 @@
   // table; French when this file is loaded on its own, as in the tests.
   const label = (fr, en) => (typeof T !== 'undefined' ? T.label(fr, en) : fr);
 
-  const MODEL_ID = 'MiniCPM5-2B-q4f16_1-MLC';
   const REPO = 'https://huggingface.co/vs4vijay/MiniCPM5-2B-MLC/resolve/main';
 
   // The record WebLLM needs to load MiniCPM5-2B: the weights sit in a
@@ -41,13 +40,40 @@
   // compiled for can be shrunk at load time — 8k is far more than a resume
   // and its rewrites need, and the smaller window keeps the KV cache small
   // enough for an ordinary laptop GPU.
-  const model = {
+  const MINI_RECORD = {
     model: REPO + '/q4f16_1',
-    model_id: MODEL_ID,
+    model_id: 'MiniCPM5-2B-q4f16_1-MLC',
     model_lib: REPO + '/q4f16_1/libs/MiniCPM5-2B-q4f16_1-MLC-webgpu.wasm',
     vram_required_MB: 2000,
     overrides: { context_window_size: 8192 },
   };
+
+  /* The models the panel can run, in the order the selector shows them. The
+     first is the one compiled for this project and needs its own record; the
+     others are records the library ships, so choosing one is only naming it.
+     The gb figure is the download the note quotes — the point of the choice is
+     that a smaller model costs a shorter wait, and a bigger one a better
+     answer. */
+  const MODELS = [
+    { id: MINI_RECORD.model_id, fr: 'MiniCPM5 2B — recommandé', en: 'MiniCPM5 2B — recommended', gb: 1.4, record: MINI_RECORD },
+    { id: 'Llama-3.2-1B-Instruct-q4f16_1-MLC', fr: 'Llama 3.2 1B — le plus léger', en: 'Llama 3.2 1B — lightest', gb: 0.7 },
+    { id: 'Qwen2.5-1.5B-Instruct-q4f16_1-MLC', fr: 'Qwen 2.5 1.5B', en: 'Qwen 2.5 1.5B', gb: 1.0 },
+    { id: 'Llama-3.2-3B-Instruct-q4f16_1-MLC', fr: 'Llama 3.2 3B — le plus capable', en: 'Llama 3.2 3B — most capable', gb: 1.9 },
+  ];
+
+  // The choice is a preference of this browser, kept with the other two (the
+  // draft and the provider) and never sent anywhere.
+  const MODEL_KEY = 'atscv.llm.model.v1';
+
+  const loadModel = () => {
+    try {
+      const id = localStorage.getItem(MODEL_KEY);
+      return MODELS.find((m) => m.id === id) || MODELS[0];
+    } catch (e) {
+      return MODELS[0]; // storage refused: the default model still runs
+    }
+  };
+  let chosen = loadModel();
 
   const run = document.getElementById('ia-run');
   const optimize = document.getElementById('ia-optimize');
@@ -74,6 +100,7 @@
   // while a provider is active — nothing to unfold to see where the CV goes.
   const providerCard = document.getElementById('ia-provider-card');
   const providerState = document.getElementById('ia-provider-state');
+  const modelSelect = document.getElementById('ia-model');
   const note = document.getElementById('ia-note');
   const statusNode = document.getElementById('ia-status');
   const out = document.getElementById('ia-out');
@@ -118,7 +145,22 @@
     }
   };
 
-  const defaultNote = note ? note.textContent : '';
+  /* The language the panel is written in decides the two strings the model
+     choice adds: the labels of the records and the size they quote. */
+  const FRENCH = label('fr', 'en') === 'fr';
+  const modelLabel = (m) => (FRENCH ? m.fr : m.en);
+  const sizeText = (gb) => (FRENCH ? String(gb).replace('.', ',') + ' Go' : gb + ' GB');
+
+  /* modelNote is the line under the buttons: which model runs in this browser
+     and what it costs to get it — the two facts a choice of model is about. */
+  const modelNote = () => label(
+    'Analyse locale avec le modèle ' + modelLabel(chosen) +
+      ' (WebGPU, dans ce navigateur) : le CV ne quitte jamais la machine. ' +
+      'Premier lancement : environ ' + sizeText(chosen.gb) + ' à télécharger, mis en cache ensuite.',
+    'Local analysis with the model ' + modelLabel(chosen) +
+      ' (WebGPU, in this browser): the resume never leaves the machine. ' +
+      'First run: about ' + sizeText(chosen.gb) + ' to download, cached afterwards.'
+  );
 
   const renderProvider = () => {
     llm = loadLLM();
@@ -142,9 +184,42 @@
       if (provKey) provKey.value = llm.apiKey;
       if (provClear) provClear.hidden = false;
     } else {
-      note.textContent = defaultNote;
+      note.textContent = modelNote();
       if (provClear) provClear.hidden = true;
     }
+  };
+
+  /* renderModel fills the selector from the table above and gives it the choice
+     kept in this browser: the options are built here, beside the records, so
+     the page carries no list of its own. */
+  const renderModel = () => {
+    if (modelSelect) {
+      while (modelSelect.firstChild) modelSelect.firstChild.remove();
+      for (const m of MODELS) {
+        const option = document.createElement('option');
+        option.value = m.id;
+        option.textContent = modelLabel(m);
+        modelSelect.appendChild(option);
+      }
+      modelSelect.value = chosen.id;
+    }
+    if (!llm && note) note.textContent = modelNote();
+  };
+
+  /* chooseModel keeps the pick for the next visit and names it. The engine is
+     reloaded on the next run, never on the change itself: a click in a select
+     must not start a gigabyte of download. */
+  const chooseModel = () => {
+    const picked = MODELS.find((m) => m.id === (modelSelect ? modelSelect.value : ''));
+    if (!picked) return;
+    chosen = picked;
+    try {
+      localStorage.setItem(MODEL_KEY, chosen.id);
+    } catch (e) {
+      // Storage refused: the choice still holds for this page.
+    }
+    if (!llm && note) note.textContent = modelNote();
+    status(label('Modèle local : ', 'Local model: ') + modelLabel(chosen));
   };
 
   const saveProvider = () => {
@@ -269,8 +344,11 @@
   };
 
   /* The engine survives between two runs: reloading it would re-read the
-     cached weights, and the first load is the expensive one. */
+     cached weights, and the first load is the expensive one. The loaded model
+     is remembered, so a change of choice reloads the engine instead of
+     querying it with the wrong weights. */
   let engine = null;
+  let loaded = '';
   let busy = false;
   // The stop reason of the last stream: the only thing that tells a cut
   // answer from a written one, whichever door the writing came through.
@@ -623,27 +701,45 @@
     return s.slice(start, end + 1);
   };
 
-  /* ensureEngine loads the library and the model on first use, with the
-     download bar taking over from the spinner once the weights move. */
+  /* onProgress is the download report, shared by a first load and a reload:
+     the measured phase gets the measured indicator — the bar takes over from
+     the spinner, and comes with the engine's own prediction of what is left. */
+  const onProgress = (report) => {
+    spin(false);
+    download(report.progress);
+    const eta = Number.isFinite(report.timePrediction) && report.timePrediction > 0
+      ? ' · ≈ ' + Math.round(report.timePrediction) + ' s'
+      : '';
+    status(label('Téléchargement du modèle — ', 'Downloading the model — ') +
+      Math.round((report.progress || 0) * 100) + ' %' + eta, 'waiting');
+  };
+
+  /* catalog is every record the engine may be asked for: the prebuilt ones the
+     library ships, plus the compiled MiniCPM5. It is built when the library is
+     imported, because importing it is what fetches the records. */
+  const catalog = (webllm) => [...(webllm.prebuiltAppConfig?.model_list || []), MINI_RECORD];
+
+  /* ensureEngine loads the library and the chosen model on first use, and
+     reloads the one engine when the reader picked another model since. */
   const ensureEngine = async () => {
-    if (engine) return engine;
-    status(label('Chargement du moteur…', 'Loading the engine…'), 'waiting');
+    if (engine && loaded === chosen.id) return engine;
+    status(label('Chargement de ' + modelLabel(chosen) + '…',
+      'Loading ' + modelLabel(chosen) + '…'), 'waiting');
     const webllm = await import('/static/vendor/webllm.js');
-    engine = await webllm.CreateMLCEngine(MODEL_ID, {
-      appConfig: { model_list: [model] },
-      initProgressCallback: (report) => {
-        // The measured phase gets the measured indicator: the bar takes
-        // over from the spinner for the download, and comes with the
-        // prediction the engine makes of what is left of it.
-        spin(false);
-        download(report.progress);
-        const eta = Number.isFinite(report.timePrediction) && report.timePrediction > 0
-          ? ' · ≈ ' + Math.round(report.timePrediction) + ' s'
-          : '';
-        status(label('Téléchargement du modèle — ', 'Downloading the model — ') +
-          Math.round((report.progress || 0) * 100) + ' %' + eta, 'waiting');
-      },
+    if (engine) {
+      // One engine, one copy of the weights in GPU memory: a second engine
+      // would hold the old model beside the new one until the page reloaded.
+      if (engine.setInitProgressCallback) engine.setInitProgressCallback(onProgress);
+      await engine.reload(chosen.id);
+      loaded = chosen.id;
+      downloadOff();
+      return engine;
+    }
+    engine = await webllm.CreateMLCEngine(chosen.id, {
+      appConfig: { model_list: catalog(webllm) },
+      initProgressCallback: onProgress,
     });
+    loaded = chosen.id;
     downloadOff();
     return engine;
   };
@@ -701,7 +797,12 @@
       return sseChoices(res);
     }
     const eng = await ensureEngine();
-    return localChoices(eng.chat.completions.create({ messages, stream: true, ...params }));
+    // The engine answers a promise of the stream, not the stream itself:
+    // iterating what create() returns without awaiting it is what produced
+    // "chunks is not async iterable". Awaiting a value that is already an
+    // async iterable returns it unchanged, so the older shape still runs.
+    const chunks = await eng.chat.completions.create({ messages, stream: true, ...params });
+    return localChoices(chunks);
   };
 
   /* rewrite is both actions: the draft is validated first (the model must be
@@ -1211,6 +1312,9 @@
     }
   }
   if (provClear) provClear.addEventListener('click', clearProvider);
+  // The local model: a change is kept, never a download started.
+  if (modelSelect) modelSelect.addEventListener('change', chooseModel);
   renderOffer();
   renderProvider();
+  renderModel();
 })();

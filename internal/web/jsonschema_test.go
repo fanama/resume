@@ -297,6 +297,25 @@ func TestTheAnalysisUsesTheGrammar(t *testing.T) {
 	}
 }
 
+// TestTheLocalStreamIsAwaited guards the one line no other test can reach. The
+// engine's chat.completions.create answers a promise of the stream, not the
+// stream: iterating what it returns without awaiting it raises "chunks is not
+// async iterable" in the browser — a failure only a reader with WebGPU and a
+// gigabyte of weights would ever hit. The served file is read for the wiring
+// instead, the way the grammar test reads it.
+func TestTheLocalStreamIsAwaited(t *testing.T) {
+	rec := get(t, testServer(t), "/static/analysis.js")
+	if rec.Code != http.StatusOK {
+		t.Fatalf("GET /static/analysis.js = %d", rec.Code)
+	}
+	script := rec.Body.String()
+	awaited := regexp.MustCompile(`await\s+\w+\.chat\.completions\.create\(`)
+	if !awaited.MatchString(script) {
+		t.Error("the local engine's stream is not awaited: create() answers a promise of the " +
+			"stream, and iterating it fails with \"chunks is not async iterable\"")
+	}
+}
+
 // fieldPath matches the shape the translation rules spell a field in: the
 // dotted path of the published schema, with [] for the arrays. It is what tells
 // a named field apart from the backticks that live in the code fences of

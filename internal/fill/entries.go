@@ -6,7 +6,6 @@ import (
 	"unicode"
 
 	"github.com/fanama/resume/atscv/internal/layout"
-	"github.com/fanama/resume/atscv/internal/model"
 )
 
 // A date is read with layout.ParsePeriod rather than with a grammar of its own.
@@ -39,114 +38,6 @@ var (
 	fieldSplitters   = []string{" | ", " - ", " — ", " – ", " · ", " / ", ", ", " • "}
 )
 
-// readIdentity takes the name and the title from the lines that precede the
-// first heading. Both are guesses about position: in every template that has
-// them, the name is at the top and the title is under it.
-func (f *filler) readIdentity(head []string) []string {
-	i := 0
-	// Skip the decorative lines some templates print: a rule of dashes, or a
-	// page number left in the text.
-	for i < len(head) && isDecorative(head[i]) {
-		i++
-	}
-	if i < len(head) {
-		if name := cleanName(head[i]); name != "" {
-			f.resume.Name = name
-			i++
-		}
-	}
-	// The title is the next line, if it reads like one: short, no date, and
-	// either ends in a job family or is a single noun phrase.
-	if i < len(head) {
-		if h := cleanHeadline(head[i]); h != "" {
-			f.resume.Headline = h
-			i++
-		}
-	}
-	rest := head[i:]
-	if len(rest) > 12 {
-		// A head that never ends is a document with no heading in it; keeping
-		// all of it as a summary would swallow the CV.
-		rest = rest[:12]
-	}
-	return rest
-}
-
-var (
-	// A name is two to four capitalised words, and carries no digits, no @
-	// and no sentence punctuation. Anything looser and a job title qualifies.
-	nameRe = regexp.MustCompile(`^(?:[A-ZÀ-ÖØ-Þ][\p{L}\p{M}'’\-]{1,20}(?:\s+(?:de|du|des|van|von|der|den|la|le|el|al|bin|da))?\s*){1,4}$`)
-	// A job family is what a title ends in. Used only to tell a title from a
-	// sentence, never to invent one.
-	titleWords = []string{
-		"engineer", "developer", "manager", "analyst", "consultant", "architect",
-		"designer", "scientist", "researcher", "lead", "head", "director", "officer",
-		"specialist", "technician", "administrator", "coordinator", "assistant",
-		"professor", "teacher", "student", "intern", "freelance", "associate", "partner",
-		"ingénieur", "developpeur", "développeur", "responsable", "analyste", "consultant",
-		"architecte", "designer", "chercheur", "directeur", "responsable", "gestionnaire",
-		"professeur", "enseignant", "étudiant", "stagiaire", "freelance", "associé",
-	}
-)
-
-// cleanName accepts a line as a name or returns "".
-func cleanName(line string) string {
-	s := strings.TrimSpace(strings.Trim(line, " |•-–—"))
-	// A name never carries a digit, a colon, a date or an address marker.
-	if s == "" || len([]rune(s)) > 48 || strings.ContainsAny(s, "0123456789@:/") {
-		return ""
-	}
-	if _, isHeading := sectionOf(s); isHeading {
-		return ""
-	}
-	if !nameRe.MatchString(s) {
-		return ""
-	}
-	// "Ingénieur logiciel" is two capitalised words too. The difference is
-	// that a job title ends in a job word, so it is rejected here and picked
-	// up as the headline instead.
-	if endsWithTitleWord(s) {
-		return ""
-	}
-	return s
-}
-
-func endsWithTitleWord(s string) bool {
-	folded := layout.Fold(strings.ToLower(s))
-	for _, w := range titleWords {
-		if strings.HasSuffix(strings.TrimSpace(folded), " "+w) || strings.HasSuffix(strings.TrimSpace(folded), w) {
-			return true
-		}
-	}
-	return false
-}
-
-// cleanHeadline accepts a line as a title: it has to be short, and either carry
-// a job word or be a couple of words with no sentence punctuation.
-func cleanHeadline(line string) string {
-	s := strings.TrimSpace(strings.Trim(line, " |•-–—"))
-	if s == "" || len([]rune(s)) > 64 {
-		return ""
-	}
-	if _, isHeading := sectionOf(s); isHeading {
-		return ""
-	}
-	if strings.ContainsAny(s, "0123456789@") || hasDate(s) {
-		return ""
-	}
-	if strings.Contains(s, ". ") || strings.HasSuffix(s, ".") {
-		return ""
-	}
-	// A sentence of body text is not a title. Anything over ten words is prose.
-	if len(strings.Fields(s)) > 10 {
-		return ""
-	}
-	if endsWithTitleWord(s) || len(strings.Fields(s)) <= 6 {
-		return s
-	}
-	return ""
-}
-
 func isDecorative(line string) bool {
 	s := strings.TrimSpace(line)
 	if s == "" {
@@ -159,195 +50,6 @@ func isDecorative(line string) bool {
 	// A lone page number.
 	if n, err := regexp.MatchString(`^\d{1,3}$`, s); err == nil && n {
 		return true
-	}
-	return false
-}
-
-// Heading counts decide the language, so the two lists must hold only headings
-// that are decisive in one direction. A heading both languages share, such as
-// "experience" or "projects", is in neither: counting it in both cancels out and
-// makes the document look French or English at random.
-var (
-	frenchOnly = map[string]int{
-		"parcours": 1, "parcours professionnel": 1, "poste": 1, "postes": 1,
-		"formation": 1, "formations": 1, "diplome": 1, "diplomes": 1, "etudes": 1,
-		"etude": 1, "competences": 1, "competence": 1, "competences techniques": 1,
-		"competences professionnelles": 1, "langues": 1, "langue": 1,
-		"realisations": 1, "realisation": 1, "profil": 1, "a propos": 1,
-		"benevolat": 1, "activites": 1, "activites associatives": 1,
-		"scolarite": 1, "mots cles": 1, "technologies": 1, "outils": 1,
-		"parcours academique": 1, "formation initiale": 1, "centre d interet": 1,
-		"distinctions": 1, "recompenses": 1, "accroche": 1,
-		"experience professionnelle": 1, "experiences professionnelles": 1,
-		"formations et certifications": 1, "certifications et diplomes": 1,
-	}
-	englishOnly = map[string]int{
-		"work experience": 1, "professional experience": 1, "employment": 1,
-		"employment history": 1, "career": 1, "education": 1, "skills": 1,
-		"technical skills": 1, "hard skills": 1, "languages": 1,
-		"professional skills": 1, "side projects": 1, "personal projects": 1,
-		"academic background": 1, "academic": 1, "qualifications": 1,
-		"volunteering": 1, "volunteer": 1, "activities": 1,
-		"publications": 1, "papers": 1, "articles": 1, "references": 1,
-		"interests": 1, "hobbies": 1, "awards": 1, "honors": 1,
-		"professional summary": 1, "personal statement": 1, "about": 1,
-		"about me": 1, "profile": 1, "summary": 1, "tech stack": 1,
-		"stack": 1, "tools": 1, "degree": 1, "spoken languages": 1,
-	}
-	// Words that carry the language on their own, used when the headings tie.
-	// They are counted on the whole document because a CV states its work in
-	// prose, and prose is long.
-	frenchWords  = []string{" et ", " avec ", " chez ", " dont ", " pour ", " dans ", " une ", " sur "}
-	englishWords = []string{" and ", " with ", " at ", " for ", " from ", " the ", " of "}
-)
-
-// guessLang decides which language the headings are written in. The caller may
-// already know it, from the editor's own setting, and then nothing is guessed.
-//
-// Three passes, cheapest first: the headings that only one language uses, then
-// the function words of the prose, and only then the tool's default. A single
-// "EXPERIENCE" heading decides nothing, which is why the second pass exists.
-func guessLang(lines []string, want model.Lang) model.Lang {
-	if want != "" {
-		return want
-	}
-	var fr, en int
-	for _, l := range lines {
-		// Only headings count here: body text mentions both languages at once,
-		// and one English word in a French CV is not a language signal.
-		key := foldKey(strings.Trim(strings.TrimSpace(l), " .:•|-–—"))
-		if _, ok := headings[key]; !ok {
-			key = foldKey(trimNumbering(strings.Trim(strings.TrimSpace(l), " .:•|-–—")))
-		}
-		fr += frenchOnly[key]
-		en += englishOnly[key]
-	}
-	switch {
-	case fr > en:
-		return model.LangFR
-	case en > fr:
-		return model.LangEN
-	}
-
-	joined := " " + layoutFold(strings.ToLower(strings.Join(lines, " "))) + " "
-	for _, w := range frenchWords {
-		fr += strings.Count(joined, w)
-	}
-	for _, w := range englishWords {
-		en += strings.Count(joined, w)
-	}
-	switch {
-	case fr > en:
-		return model.LangFR
-	case en > fr:
-		return model.LangEN
-	}
-	// Nothing to go on. French is the tool's default and the language of the
-	// documentation, so an undecidable document is read as French.
-	return model.LangFR
-}
-
-// readSection fills one section from the lines under its heading.
-func (f *filler) readSection(s section) {
-	switch s.kind {
-	case kindSummary:
-		f.readSummary(s)
-	case kindExperience:
-		f.readExperience(s)
-	case kindEducation:
-		f.readEducation(s)
-	case kindSkills:
-		f.readSkills(s)
-	case kindLanguages:
-		f.readLanguages(s)
-	case kindProjects:
-		f.readProjects(s)
-	case kindCerts:
-		f.readCertifications(s)
-	case kindActivities:
-		f.readActivities(s)
-	case kindPublication:
-		// The schema has no field for a publication list or a reference list.
-		// The heading is reported so the candidate knows the content exists
-		// somewhere and did not make it into the draft.
-		f.noteUnmapped(s)
-	}
-}
-
-func (f *filler) noteUnmapped(s section) {
-	if len(s.lines) == 0 && s.title == "" {
-		return
-	}
-	for _, u := range f.unmapped {
-		if u == s.title {
-			return
-		}
-	}
-	f.unmapped = append(f.unmapped, s.title)
-}
-
-func (f *filler) readSummary(s section) {
-	if len(s.lines) == 0 {
-		f.noteUnmapped(s)
-		return
-	}
-	if f.resume.Summary == "" {
-		f.resume.Summary = truncate(joinSentences(s.lines), 1200)
-	}
-}
-
-func joinSentences(lines []string) string {
-	out := make([]string, 0, len(lines))
-	for _, l := range lines {
-		l = strings.TrimSpace(strings.TrimLeft(strings.TrimSpace(l), "•-–—*"))
-		if l != "" {
-			out = append(out, l)
-		}
-	}
-	return strings.Join(out, " ")
-}
-
-// readLanguages reads "Français : natif" pairs, the one section whose shape is
-// regular enough to be read without guessing a value.
-func (f *filler) readLanguages(s section) {
-	for _, line := range s.lines {
-		name, level, ok := strings.Cut(line, ":")
-		if !ok {
-			name, level, ok = strings.Cut(line, " - ")
-		}
-		if !ok {
-			continue
-		}
-		n := strings.TrimSpace(name)
-		l := strings.TrimSpace(level)
-		if n == "" || l == "" || len([]rune(n)) > 24 || isDecorative(l) {
-			continue
-		}
-		if !looksLikeLanguage(n) {
-			continue
-		}
-		f.resume.Languages = append(f.resume.Languages, model.SpokenLanguage{Name: n, Level: l})
-	}
-	if len(f.resume.Languages) == 0 {
-		f.noteUnmapped(s)
-	}
-}
-
-var languageNames = []string{
-	"francais", "français", "anglais", "allemand", "espagnol", "italien", "portugais",
-	"neerlandais", "neerlan", "russe", "chinois", "japonais", "arabe", "polonais",
-	"hongrois", "tchèque", "grec", "suédois", "danois", "norvégien", "finnois",
-	"ukrainien", "roumain", "bulgare", "catalan", "basque", "breton", "latin",
-	"french", "english", "german", "spanish", "italian", "portuguese", "dutch",
-	"russian", "chinese", "japanese", "arabic", "polish", "hindi", "korean",
-}
-
-func looksLikeLanguage(s string) bool {
-	f := layout.Fold(strings.ToLower(strings.TrimSpace(s)))
-	for _, n := range languageNames {
-		if f == n || strings.HasPrefix(f, n) {
-			return true
-		}
 	}
 	return false
 }
@@ -391,8 +93,6 @@ func splitPeriod(line string) (start, end string, ok bool) {
 	}
 }
 
-// dateSpans lists the date-like fragments of a line, in order, with the
-// overlap resolved so that "01/2020" is not also read as "2020".
 // span is a date-like fragment located in a line, so that two regexes matching
 // the same text do not both count.
 type span struct {
@@ -400,6 +100,8 @@ type span struct {
 	text       string
 }
 
+// dateSpans lists the date-like fragments of a line, in order, with the
+// overlap resolved so that "01/2020" is not also read as "2020".
 func dateSpans(line string) []string {
 	var spans []span
 	add := func(re *regexp.Regexp) {

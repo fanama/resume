@@ -78,6 +78,7 @@ func TestPageServesTheShell(t *testing.T) {
 		`data-tab="ia"`, `id="ia-run"`, `id="ia-out"`, `id="ia-spinner"`, `id="ia-bar"`,
 		`id="ia-simulate"`,
 		`id="ia-url"`, `id="ia-job"`, `id="ia-offer"`, `id="ia-offer-clear"`,
+		`id="ia-model"`,
 		`id="ia-provider-url"`, `id="ia-provider-model"`, `id="ia-provider-key"`,
 		`id="ia-provider-save"`, `id="ia-provider-clear"`,
 		`id="ia-optimize"`, `id="ia-translate"`,

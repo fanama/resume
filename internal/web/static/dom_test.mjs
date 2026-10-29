@@ -606,6 +606,35 @@ if (translateBtn) {
 check(!!optimizeBtn && !!translateBtn,
   'the rewrite buttons are missing from the served page');
 
+/* 7d-bis. the local model is a choice, not a constant: the panel lists the
+      models it can run, keeps the pick in this browser beside the draft, and
+      names it in the note. The choice is only recorded here — the run above
+      refused before any engine was asked for. */
+const modelSelectNode = document.getElementById('ia-model');
+check(!!modelSelectNode, 'no model selector for the local engine');
+const modelOptions = modelSelectNode
+  ? modelSelectNode.children.filter((n) => n.tagName === 'OPTION')
+  : [];
+check(modelOptions.length >= 2,
+  'the model selector offers ' + modelOptions.length + ' model(s), want several');
+check(!!modelSelectNode && modelSelectNode.value === 'MiniCPM5-2B-q4f16_1-MLC',
+  'the model selector does not start on the shipped model: ' +
+    JSON.stringify(modelSelectNode && modelSelectNode.value));
+if (modelSelectNode) {
+  modelSelectNode.value = 'Llama-3.2-1B-Instruct-q4f16_1-MLC';
+  modelSelectNode.dispatchEvent({ type: 'change', target: modelSelectNode });
+}
+check(localStorage.getItem('atscv.llm.model.v1') === 'Llama-3.2-1B-Instruct-q4f16_1-MLC',
+  'the chosen model is not kept in this browser: ' + localStorage.getItem('atscv.llm.model.v1'));
+check((document.getElementById('ia-note').textContent || '').indexOf('Llama 3.2 1B') >= 0,
+  'the note does not name the chosen model: ' +
+    JSON.stringify(document.getElementById('ia-note').textContent));
+// The rest of the panel runs on the shipped model: put the default back.
+if (modelSelectNode) {
+  modelSelectNode.value = 'MiniCPM5-2B-q4f16_1-MLC';
+  modelSelectNode.dispatchEvent({ type: 'change', target: modelSelectNode });
+}
+
 /* 7e. the offer of a job is fetched once, kept in this browser, and named for
       as long as it stays: the URL goes out, the text comes back and is stored,
       and the clear button unties the CV from it again */

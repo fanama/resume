@@ -12,12 +12,8 @@ func FromLayout(l *layout.Layout) []Paragraph {
 	seenSection := false
 	for _, b := range l.Blocks {
 		switch b.Kind {
-		case layout.KindName:
-			paragraphs = append(paragraphs, Line(StyleName, b.Text))
-		case layout.KindHeadline:
-			paragraphs = append(paragraphs, Line(StyleHeadline, b.Text))
-		case layout.KindContact:
-			paragraphs = append(paragraphs, Line(StyleContact, b.Text))
+		case layout.KindName, layout.KindHeadline, layout.KindContact:
+			paragraphs = append(paragraphs, identityParagraph(b))
 		case layout.KindSection:
 			p := Line(StyleSection, b.Text)
 			p.RuleTop = !seenSection
@@ -25,11 +21,7 @@ func FromLayout(l *layout.Layout) []Paragraph {
 			paragraphs = append(paragraphs, p)
 		case layout.KindEntryTitle:
 			entryStarts = append(entryStarts, len(paragraphs))
-			p := Paragraph{Style: StyleEntry, Runs: []Run{{Text: b.Text, Bold: true}}}
-			if b.Dim != "" {
-				p.Runs = append(p.Runs, Run{Text: " | " + b.Dim, Dim: true})
-			}
-			paragraphs = append(paragraphs, p)
+			paragraphs = append(paragraphs, entryParagraph(b))
 		case layout.KindEntryMeta:
 			paragraphs = append(paragraphs, Line(StyleEntryMeta, b.Text))
 		case layout.KindSummary:
@@ -42,14 +34,40 @@ func FromLayout(l *layout.Layout) []Paragraph {
 		case layout.KindBullet:
 			paragraphs = append(paragraphs, Line(StyleBullet, b.Text))
 		case layout.KindField:
-			if b.Bold != "" {
-				paragraphs = append(paragraphs, Labeled(StyleField, b.Bold, b.Text))
-			} else {
-				paragraphs = append(paragraphs, Line(StyleField, b.Text))
-			}
+			paragraphs = append(paragraphs, fieldParagraph(b))
 		}
 	}
 	return chainEntries(paragraphs, entryStarts)
+}
+
+// identityParagraph maps one line of the header to its style.
+func identityParagraph(b layout.Block) Paragraph {
+	switch b.Kind {
+	case layout.KindName:
+		return Line(StyleName, b.Text)
+	case layout.KindHeadline:
+		return Line(StyleHeadline, b.Text)
+	default:
+		return Line(StyleContact, b.Text)
+	}
+}
+
+// entryParagraph is the bold title line, with the dim company and period beside
+// it when the layout prints them on the same line.
+func entryParagraph(b layout.Block) Paragraph {
+	p := Paragraph{Style: StyleEntry, Runs: []Run{{Text: b.Text, Bold: true}}}
+	if b.Dim != "" {
+		p.Runs = append(p.Runs, Run{Text: " | " + b.Dim, Dim: true})
+	}
+	return p
+}
+
+// fieldParagraph is a labelled field, or a plain line when it has no label.
+func fieldParagraph(b layout.Block) Paragraph {
+	if b.Bold != "" {
+		return Labeled(StyleField, b.Bold, b.Text)
+	}
+	return Line(StyleField, b.Text)
 }
 
 // chainEntries marks every paragraph of an entry but its last one with
